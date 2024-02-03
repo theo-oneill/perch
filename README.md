@@ -1,2 +1,15 @@
 # perch
-Persistent Homology for Images &amp; Cubes  
+## Persistent Homology for Images &amp; Cubes
+
+Dependencies:
+    – [cubical ripser](https://github.com/shizuo-kaji/CubicalRipser_3dim)
+    – [cc3d](https://pypi.org/project/connected-components-3d/)
+    – [jax](https://jax.readthedocs.io/en/latest/)
+    – numpy
+    – astropy
+    – matplotlib
+    – tqdm
+
+See examples folder for an example of running perch on a 3D volume.  
+
+
