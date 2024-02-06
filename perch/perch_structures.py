@@ -23,8 +23,7 @@ class Structures(object):
             self._imgshape = img_shape
             self._ndim = len(img_shape)
 
-        if wcs is not None:
-            self.wcs = wcs
+        self.wcs = wcs
 
         self.struc_map = struc_map
         self.level_map = None

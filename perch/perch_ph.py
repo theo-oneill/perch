@@ -53,7 +53,7 @@ class PH(object):
         if verbose:
             t2 = time.time()
             print(f'\\n PH Computation Complete! \n {t2-t1:.1f}s elapsed')
-            notify("Alert", f"PH Computation Complete!")
+            #notify("Alert", f"PH Computation Complete!")
 
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
