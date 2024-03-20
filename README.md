@@ -9,6 +9,7 @@ See examples folder for an example of running perch on 2D images and 3D volumes.
 Two engines are available for the Persistent Homology computation:
 
 – C++ engine: cubical ripser
+
 – Python engine: py_cripser
 
 The C++ engine is generally recommended for speed, but requires image segmentation to be computed as a separate step in the perch workflow.  
