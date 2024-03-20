@@ -22,7 +22,7 @@ os.chdir(odir)
 import porespy as ps
 
 
-blob_lev = 10
+blob_lev = 1
 img2d = ps.generators.blobs(shape=[1000, 1000], porosity=None, blobiness=[blob_lev,blob_lev])
 
 plt.figure()
@@ -33,7 +33,11 @@ img3d = ps.generators.blobs(shape=[200, 200,200], porosity=None)#, blobiness=[1,
 plt.imshow(img3d[100,:,:])
 
 
-hom = PH.compute_hom(img2d,verbose=True)
+hom = PH.compute_hom(img2d,verbose=True,engine='C')
+hom = PH.compute_hom(img2d,verbose=True,engine='py')
+
+from perch.py_cripser import cubicalripser_pybind
+
 
 hom.barcode()
 hom.pers_diagram()

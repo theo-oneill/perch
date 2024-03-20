@@ -1,4 +1,3 @@
-import cripser
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,6 +16,7 @@ class PH(object):
         self.max_Hi = None
         self.generators = None
         self.strucs = None
+        self.ph_fxn = None
 
     ####################################################
     ## compute PH (or load from stored)
@@ -30,7 +30,8 @@ class PH(object):
                 img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2
         return img_prep
 
-    def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False):
+    def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
+                    engine='C'):
 
         self = PH()
         self.data = data
@@ -41,17 +42,26 @@ class PH(object):
             self.data_prep = self.prep_img()
         if not flip_data:
             self.data_prep = self.data
-
         if max_Hi is None:
             max_Hi = self.n_dim - 1
         self.max_Hi = max_Hi
+
+        if engine == 'C':
+            import cripser
+            self.ph_fxn = cripser.computePH
+
+        if engine == 'py':
+            import perch.py_cripser as py_cripser
+            self.ph_fxn = py_cripser.cubicalripser_pybind.compute_ph
+
 
         if verbose:
             import time
             print('Computing PH... \n')
             t1 = time.time()
 
-        ph_all = cripser.computePH(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
+        #ph_all = cripser.computePH(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
+        ph_all = self.ph_fxn(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
 
         if verbose:
             t2 = time.time()
