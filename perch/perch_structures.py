@@ -193,10 +193,13 @@ class Structures(object):
         mask = np.isin(self.struc_map, s_include)
         return mask
 
-    def sort_keys(self, s_include = None):
+    def sort_keys(self, s_include = None, invert=False):
         if s_include is None:
             s_include = list(self.structure_keys)
-        return np.argsort(self.death[s_include])
+        if not invert:
+            return np.argsort(self.death[s_include])
+        if invert:
+            return np.argsort(self.death[s_include])[::-1]
 
     def sort_birth(self, s_include = None):
         if s_include is None:
@@ -255,11 +258,12 @@ class Structures(object):
             self._clear_hierarchy()
 
         ### calculate parents
-        ascend_death = self.sort_keys(s_include=s_include)
+        flag_invert = self.htype[0]==2
+        ascend_death = self.sort_keys(s_include=s_include,invert=flag_invert)
         pbar = tqdm(total=len(ascend_death), unit='structures')
         for s in ascend_death:
             struc = self.structures[s]
-            struc.compute_segment(img=img_jnp, verbose=False)
+            struc.compute_segment(img=img_jnp)
             struc_multi_inds = np.unravel_index(struc.indices, self._imgshape)
             parent_cand = np.nanmax(mask_s[struc_multi_inds])
             if np.isfinite(parent_cand):

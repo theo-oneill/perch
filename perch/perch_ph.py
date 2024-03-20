@@ -3,6 +3,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 from perch.perch_utils import notify
+from perch.perch_structures import Structures
 
 hcol = {0: 'palevioletred', 1: 'mediumpurple', 2: 'deepskyblue'}
 hnames = {0: '$H_0$', 1: '$H_1$', 2: '$H_2$'}
@@ -15,6 +16,7 @@ class PH(object):
         self.n_dim = 0
         self.max_Hi = None
         self.generators = None
+        self.strucs = None
 
     ####################################################
     ## compute PH (or load from stored)
@@ -28,12 +30,13 @@ class PH(object):
                 img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2
         return img_prep
 
-    def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, location="birth",verbose=True):
+    def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False):
 
         self = PH()
         self.data = data
         self.n_dim = len(data.shape)
         self.wcs = wcs
+        self.img_shape = data.shape
         if flip_data:
             self.data_prep = self.prep_img()
         if not flip_data:
@@ -48,7 +51,7 @@ class PH(object):
             print('Computing PH... \n')
             t1 = time.time()
 
-        ph_all = cripser.computePH(self.data_prep, maxdim=self.max_Hi, location=location)
+        ph_all = cripser.computePH(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
 
         if verbose:
             t2 = time.time()
@@ -61,7 +64,11 @@ class PH(object):
             base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
             ph_all = ph_all[~base_struc]
 
-        self.generators = ph_all
+        h_id = np.arange(len(ph_all))
+        h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
+
+        self.generators = h_all
+        self.strucs = Structures(structures=h_all, img_shape=self.img_shape, wcs=self.wcs,inds_dir=None)
         self.data_prep = None # save memory
 
         return self
