@@ -74,7 +74,7 @@ where understanding the relationship between objects in different dimensions is 
 
 
 from typing import List, Tuple
-from cube import Cube
+from perch.py_cripser.cube import Cube
 import numpy as np
 
 class DenseCubicalGrids:

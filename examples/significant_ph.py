@@ -23,7 +23,7 @@ import porespy as ps
 
 
 blob_lev = 1
-img2d = ps.generators.blobs(shape=[1000, 1000], porosity=None, blobiness=[blob_lev,blob_lev])
+img2d = ps.generators.blobs(shape=[100, 100], porosity=None, blobiness=[blob_lev,blob_lev])
 
 plt.figure()
 plt.imshow(img2d)

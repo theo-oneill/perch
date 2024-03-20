@@ -3,12 +3,12 @@ import os
 import argparse
 import numpy as np
 from datetime import datetime
-from cube import Cube
-from dense_cubical_grids import DenseCubicalGrids
-from write_pairs import WritePairs
-from joint_pairs import JointPairs
-from compute_pairs import ComputePairs
-from config import Config
+from perch.py_cripser.cube import Cube
+from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
+from perch.py_cripser.write_pairs import WritePairs
+from perch.py_cripser.joint_pairs import JointPairs
+from perch.py_cripser.compute_pairs import ComputePairs
+from perch.py_cripser.config import Config
 
 
 def print_usage_and_exit(exit_code):

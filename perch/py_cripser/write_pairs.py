@@ -1,20 +1,5 @@
-'''class WritePairs:
-    def __init__(self, dim, birth, death, birth_x, birth_y, birth_z, death_x, death_y, death_z, print=False):
-        self.dim = dim
-        self.birth = birth
-        self.death = death
-        self.birth_x = birth_x
-        self.birth_y = birth_y
-        self.birth_z = birth_z
-        self.death_x = death_x
-        self.death_y = death_y
-        self.death_z = death_z
-        if print:
-            print(f"[{self.birth},{self.death}) birth loc. ({self.birth_x},{self.birth_y},{self.birth_z}), death loc. ({self.death_x},{self.death_y},{self.death_z})")'''
 
-
-
-from dense_cubical_grids import DenseCubicalGrids
+from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
 
 
 class WritePairs:

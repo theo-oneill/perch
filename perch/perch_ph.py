@@ -51,8 +51,8 @@ class PH(object):
             self.ph_fxn = cripser.computePH
 
         if engine == 'py':
-            import perch.py_cripser as py_cripser
-            self.ph_fxn = py_cripser.cubicalripser_pybind.compute_ph
+            from perch.py_cripser.cubicalripser_pybind import compute_ph
+            self.ph_fxn = compute_ph
 
 
         if verbose:

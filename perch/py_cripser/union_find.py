@@ -1,5 +1,5 @@
 from typing import List
-from dense_cubical_grids import DenseCubicalGrids
+from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
 import numpy as np
 
 class UnionFind:

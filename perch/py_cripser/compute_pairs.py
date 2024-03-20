@@ -1,8 +1,8 @@
 import queue
 import time
-from cube import Cube
-from write_pairs import WritePairs
-from coboundary_enumerator import CoboundaryEnumerator
+from perch.py_cripser.cube import Cube
+from perch.py_cripser.write_pairs import WritePairs
+from perch.py_cripser.coboundary_enumerator import CoboundaryEnumerator
 
 class ComputePairs:
     def __init__(self, dcg, wp, config):

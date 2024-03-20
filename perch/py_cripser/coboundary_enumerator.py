@@ -1,5 +1,5 @@
-from cube import Cube
-from dense_cubical_grids import DenseCubicalGrids
+from perch.py_cripser.cube import Cube
+from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
 
 class CoboundaryEnumerator:
     def __init__(self, dcg: DenseCubicalGrids, dim: int):

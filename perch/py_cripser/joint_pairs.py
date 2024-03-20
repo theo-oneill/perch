@@ -1,9 +1,9 @@
 from typing import List
-from cube import Cube, CubeComparator#, cube_comp, get_cube_comparator
-from dense_cubical_grids import DenseCubicalGrids
-from union_find import UnionFind
-from write_pairs import WritePairs
-from config import Config
+from perch.py_cripser.cube import Cube, CubeComparator#, cube_comp, get_cube_comparator
+from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
+from perch.py_cripser.union_find import UnionFind
+from perch.py_cripser.write_pairs import WritePairs
+from perch.py_cripser.config import Config
 import pdb
 import numba
 from functools import cmp_to_key

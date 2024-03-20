@@ -1,10 +1,10 @@
 import numpy as np
-from cube import Cube
-from write_pairs import WritePairs
-from joint_pairs import JointPairs
-from compute_pairs import ComputePairs
-from config import Config
-from dense_cubical_grids import DenseCubicalGrids
+from perch.py_cripser.cube import Cube
+from perch.py_cripser.write_pairs import WritePairs
+from perch.py_cripser.joint_pairs import JointPairs
+from perch.py_cripser.compute_pairs import ComputePairs
+from perch.py_cripser.config import Config
+from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
 
 
 def compute_ph(img, maxdim=0, top_dim=False, embedded=False, fortran_order=False):
