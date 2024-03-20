@@ -1,7 +1,7 @@
 # perch
 ### Persistent Homology for Images &amp; Cubes
 
-See examples folder for an example of running perch on a 3D volume.  
+See examples folder for an example of running perch on 2D images and 3D volumes.  
 
 #### Dependencies:
     
