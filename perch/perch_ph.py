@@ -54,7 +54,6 @@ class PH(object):
             from perch.py_cripser.cubicalripser_pybind import compute_ph
             self.ph_fxn = compute_ph
 
-
         if verbose:
             import time
             print('Computing PH... \n')
@@ -73,6 +72,7 @@ class PH(object):
             ph_all[:,2] = -ph_all[:,2]
             base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
             ph_all = ph_all[~base_struc]
+            #print('flipping observed deaths')
 
         h_id = np.arange(len(ph_all))
         h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
