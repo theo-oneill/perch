@@ -11,6 +11,7 @@ def filter_super(X,thresh):
 def filter_sub(X,thresh):
     return X < thresh
 
+
 filter_super_jit = jit(filter_super)
 filter_sub_jit = jit(filter_sub)
 
@@ -228,6 +229,7 @@ class Structure(object):
         self._indices = inds
 
     ##########################################################
+
 
     def get_mask(self):
         if self.indices is None:

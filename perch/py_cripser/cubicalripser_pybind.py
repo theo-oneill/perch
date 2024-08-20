@@ -7,7 +7,7 @@ from perch.py_cripser.config import Config
 from perch.py_cripser.dense_cubical_grids import DenseCubicalGrids
 
 
-def compute_ph(img, maxdim=0, top_dim=False, embedded=False, fortran_order=False):
+def compute_ph(img, maxdim=0, top_dim=False, embedded=False, fortran_order=False,return_seg=False):
     config = Config()
     config.format = "NUMPY"
     config.verbose = False
@@ -109,6 +109,8 @@ def compute_ph(img, maxdim=0, top_dim=False, embedded=False, fortran_order=False
         result[i, 8] = wp.death_z - pad_z
 
     seg_map = jp.seg_map  if dcg.dim > 2 else  jp.seg_map[:,:,0]
-
-    return result#, seg_map
+    if return_seg:
+        return result, seg_map
+    if not return_seg:
+        return result#, seg_map
 

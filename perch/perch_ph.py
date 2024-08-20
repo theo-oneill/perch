@@ -17,6 +17,7 @@ class PH(object):
         self.generators = None
         self.strucs = None
         self.ph_fxn = None
+        self.noise = None
 
     ####################################################
     ## compute PH (or load from stored)
@@ -27,11 +28,11 @@ class PH(object):
         if self.n_dim == 2:
                 img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
         if self.n_dim == 3:
-                img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2
+                img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2#'''
         return img_prep
 
     def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
-                    engine='C'):
+                    engine='C', noise=None):
 
         self = PH()
         self.data = data
@@ -45,6 +46,7 @@ class PH(object):
         if max_Hi is None:
             max_Hi = self.n_dim - 1
         self.max_Hi = max_Hi
+        self.noise = noise
 
         if engine == 'C':
             import cripser
@@ -64,15 +66,23 @@ class PH(object):
 
         if verbose:
             t2 = time.time()
-            print(f'\\n PH Computation Complete! \n {t2-t1:.1f}s elapsed')
+            print(f'\n PH Computation Complete! \n {t2-t1:.1f}s elapsed')
             #notify("Alert", f"PH Computation Complete!")
 
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
             ph_all[:,2] = -ph_all[:,2]
-            base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
+            '''base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
             ph_all = ph_all[~base_struc]
+            base_struc = ph_all[:, 2] == -2 * np.nanmin(-self.data)
+            ph_all = ph_all[~base_struc]'''
             #print('flipping observed deaths')
+
+        # remove generators that originate from nans
+        base_struc = ph_all[:,2] < np.nanmin(self.data)
+        ph_all = ph_all[~base_struc]
+        base_struc = np.isnan(ph_all[:, 1])
+        ph_all = ph_all[~base_struc]#'''
 
         h_id = np.arange(len(ph_all))
         h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
@@ -86,8 +96,8 @@ class PH(object):
     def export_generators(self, fname, odir='./'):
         np.savetxt(f'{odir}{fname}', self.generators)
 
-    def load_from(fname, odir='./',data=None,wcs=None, max_Hi=None):
-        gens = np.loadtxt(f'{odir}{fname}')
+    def load_from(fname, odir='./',data=None,wcs=None, max_Hi=None,conv_fac=None, noise=None):
+
         self = PH()
         self.data = data
         self.n_dim = len(data.shape)
@@ -95,7 +105,25 @@ class PH(object):
         if max_Hi is None:
             max_Hi = self.n_dim - 1
         self.max_Hi = max_Hi
+        self.noise = noise
+
+        gens = np.loadtxt(f'{odir}{fname}')
+        if conv_fac is not None:
+            gens[:,1:3] *= conv_fac
+
+        # remove generators that originate from nans
+        base_struc = gens[:,2] < np.nanmin(self.data)
+        gens = gens[~base_struc]
+        base_struc = np.isnan(gens[:, 1])
+        gens = gens[~base_struc]
+
+        if np.shape(gens)[1] == 9:
+            h_id = np.arange(len(gens))
+            gens = np.hstack((gens, np.array(h_id).reshape(-1, 1)))
+
         self.generators = gens
+        self.img_shape = data.shape
+        self.strucs = Structures(structures=gens, img_shape=self.img_shape, wcs=self.wcs,inds_dir=None)
 
         return self
 
@@ -104,25 +132,34 @@ class PH(object):
 
     def filter(self, dimension=None, min_life=None, max_life=None,
                       min_birth=None, max_birth=None,
-                      min_death=None, max_death=None):
+                      min_death=None, max_death=None, min_life_norm_birth=None,min_life_norm_death=None,inds_dir=None,
+               mask=None):
 
         ppd = self.generators
-        if dimension is not None:
-            ppd = ppd[ppd[:, 0] == dimension]
-        if min_life is not None:
-            ppd = ppd[min_life < np.abs(ppd[:, 2] - ppd[:, 1])]
-        if max_life is not None:
-            ppd = ppd[np.abs(ppd[:, 2] - ppd[:, 1]) < max_life]
-        if min_birth is not None:
-            ppd = ppd[min_birth < ppd[:, 1]]
-        if max_birth is not None:
-            ppd = ppd[ppd[:, 1] < max_birth]
-        if min_death is not None:
-            ppd = ppd[ppd[:,2] > min_death]
-        if max_death is not None:
-            ppd = ppd[ppd[:, 2] < max_death]
+        if mask is not None:
+            ppd = ppd[mask]
+            return Structures(structures=ppd, img_shape=self.img_shape, wcs=self.wcs,inds_dir=inds_dir)
+        if mask is None:
+            if dimension is not None:
+                ppd = ppd[ppd[:, 0] == dimension]
+            if min_life is not None:
+                ppd = ppd[min_life < np.abs(ppd[:, 2] - ppd[:, 1])]
+            if max_life is not None:
+                ppd = ppd[np.abs(ppd[:, 2] - ppd[:, 1]) < max_life]
+            if min_birth is not None:
+                ppd = ppd[min_birth < ppd[:, 1]]
+            if max_birth is not None:
+                ppd = ppd[ppd[:, 1] < max_birth]
+            if min_death is not None:
+                ppd = ppd[ppd[:,2] > min_death]
+            if max_death is not None:
+                ppd = ppd[ppd[:, 2] < max_death]
+            if min_life_norm_birth is not None:
+                ppd = ppd[np.abs(ppd[:, 2] - ppd[:, 1])/np.abs(ppd[:,1]) > min_life_norm_birth]
+            if min_life_norm_death is not None:
+                ppd = ppd[np.abs(ppd[:, 2] - ppd[:, 1])/np.abs(ppd[:,2]) > min_life_norm_death]
 
-        return ppd
+            return Structures(structures=ppd, img_shape=self.img_shape, wcs=self.wcs,inds_dir=inds_dir)
 
     ####################################################
     ## plotting functions
