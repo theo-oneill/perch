@@ -3,8 +3,8 @@
 # -- Project information
 
 project = 'perch'
-copyright = '2024, ONeill'
-author = 'ONeill'
+copyright = "2024, O'Neill"
+author = "O'Neill"
 
 release = '0.1'
 version = '0.1.0'
