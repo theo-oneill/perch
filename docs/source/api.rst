@@ -1,9 +1,8 @@
-API 
-=================
+API
+===
 
 .. autosummary::
    :toctree: generated
-   :recursive:
 
    perch.perch_ph
    perch.perch_structure
