@@ -9,6 +9,9 @@ def notify(title, text):
   subprocess.call(['osascript', '-e', CMD, title, text])
 
 def seg_struc(struc,img_jnp=None):
+    '''
+    Segment a structure using the structure's segment method.
+    '''
     if struc.saved_indices_exist():
       print('loading')
       struc.load_indices()

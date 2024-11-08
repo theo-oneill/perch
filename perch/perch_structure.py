@@ -17,6 +17,28 @@ filter_sub_jit = jit(filter_sub)
 
 class Structure(object):
 
+    '''
+    Class for storing information about a topological structure in an image.
+
+    Parameters
+    ----------
+    pi : array-like
+        Array of persistence information. The first element is the homology type, the second is the birth time, the third is the death time, the next three are the birth pixel coordinates, and the last three are the death pixel coordinates.
+
+    id : int
+        Unique identifier for the structure in the subsection of structures.
+
+    id_ph : int
+        Unique identifier for the structure in the full persistence diagram.
+
+    img_shape : tuple
+        Shape of the image the structure is segmented from.
+
+    sdir : str
+        Directory to save/load structure information.
+
+    '''
+
     ###########################################################################
     ###########################################################################
 
@@ -44,6 +66,10 @@ class Structure(object):
 
     def _reset_cache(self):
 
+        '''
+        Reset all cached properties.
+        '''
+
         self._indices = None
         self._values = None
 
@@ -68,74 +94,128 @@ class Structure(object):
 
     @property
     def indices(self):
+        '''
+        Indices of the structure in the image.
+        '''
         return self._indices
 
     @property
     def htype(self):
+        '''
+        Homology type of the structure.
+        '''
         return self._htype
 
     @property
     def birth(self):
+        '''
+        Birth time of the structure.
+        '''
         return self._birth
 
     @property
     def death(self):
+        '''
+        Death time of the structure.
+        '''
         return self._death
 
     @property
     def persistence(self):
+        '''
+        Persistence of the structure.
+        '''
         return np.abs(self._death - self._birth)
 
     @property
     def birthpix(self):
+        '''
+        Pixel coordinates of the birth of the structure.
+        '''
         return np.array(self._birthpix,dtype='int')
 
     @property
     def deathpix(self):
+        '''
+        Pixel coordinates of the death of the structure.
+        '''
         return np.array(self._deathpix,dtype='int')
 
     @property
     def npix(self):
+        '''
+        Number of pixels in the structure.
+        '''
         return self._npix
 
     @property
     def sum_values(self):
+        '''
+        Sum of the values of the pixels in the structure.
+        '''
         return self._sum_values
 
     @property
     def volume(self):
+        '''
+        Volume of the structure.
+        '''
         return self._volume
 
     @property
     def surface_area(self):
+        '''
+        Surface area of the structure.
+        '''
         return self._surface_area
 
     @property
     def sphericity(self):
+        '''
+        Sphericity of the structure.
+        '''
         return self._sphericity
 
     @property
     def id(self):
+        '''
+        Unique identifier for the structure in the subsection of structures.
+        '''
         return self._id
 
     @property
     def id_ph(self):
+        '''
+        Unique identifier for the structure in the full persistence diagram.
+        '''
         return self._id_ph
 
     @property
     def geom_cent(self):
+        '''
+        Geometric center of the structure.
+        '''
         return self._geom_cent
 
     @property
     def weight_cent(self):
+        '''
+        Weighted center of the structure.
+        '''
         return self._weight_cent
 
     @property
     def extreme_pixt(self):
+        '''
+        Pixel with the extreme value in the structure.
+        '''
         return self._extreme_pix
 
     @property
     def equiv_radius(self):
+        '''
+        Equivalent radius of the structure.
+        '''
         # sphere
         if self._ndim == 3:
             return (3 * self.npix / (4*np.pi))**(1/3)
@@ -145,37 +225,68 @@ class Structure(object):
 
     @property
     def level(self):
+        '''
+        Level of the structure in the hierarchy.
+        '''
         return self._level
 
     @property
     def parent(self):
+        '''
+        Parent of the structure in the hierarchy.
+        '''
         return self._parent
 
     @property
     def children(self):
+        '''
+        Children of the structure in the hierarchy.
+        '''
         return self._children
 
     @property
     def descendants(self):
+        '''
+        Descendants of the structure in the hierarchy.
+        '''
         return self._descendants
 
     @property
     def is_leaf(self):
+        '''
+        Check if the structure is a leaf in the hierarchy.
+        '''
         return self.n_children == 0
 
     @property
     def n_children(self):
+        '''
+        Number of children of the structure in the hierarchy.
+        '''
         return len(self.children)
 
     @property
     def n_descendants(self):
+        '''
+        Number of descendants of the structure in the hierarchy.
+        '''
         return len(self.descendants)
 
 
     ###################################################################
 
     def compute_segment(self, img):
+        '''
+        Compute the segmentation of the structure in the image.
 
+        Parameters
+        ----------
+        img : array-like
+            Image to segment the structure from.
+
+        '''
+
+        # check if image is numpy array
         if type(img) is np.ndarray:
             img = jnp.array(img)
 
@@ -206,10 +317,16 @@ class Structure(object):
         self._npix = len(self._indices)
 
     def saved_indices_exist(self):
+        '''
+        Check if saved indices exist.
+        '''
         fname = f'struc_{self.id_ph}_inds.txt'
         return os.path.isfile(f'{self.sdir}{fname}')
 
     def load_indices(self):
+        '''
+        Load saved indices.
+        '''
         fname = f'struc_{self.id_ph}_inds.txt'
         #self._indices = tuple(np.loadtxt(f'{sdir}{fname}').astype('int'))
         self._indices = np.loadtxt(f'{self.sdir}{fname}').astype('int')
@@ -219,19 +336,31 @@ class Structure(object):
         self._npix = self._indices.size
 
     def save_indices(self):
+        '''
+        Save indices.
+        '''
         fname = f'struc_{self.id_ph}_inds.txt'
         np.savetxt(f'{self.sdir}{fname}', self.indices, fmt='%i')
 
     def clear_indices(self):
+        '''
+        Clear indices.
+        '''
         self._indices = None
 
     def set_indices(self, inds):
+        '''
+        Set indices.
+        '''
         self._indices = inds
 
     ##########################################################
 
 
     def get_mask(self):
+        '''
+        Get mask of the structure.
+        '''
         if self.indices is None:
             print('Error: must compute or load segmentation first!')
             return
@@ -240,6 +369,9 @@ class Structure(object):
         return mask
 
     def get_values(self, img=None):
+        '''
+        Get image values of the structure.
+        '''
         if img is None:
             print('Error: must input image!')
             return
@@ -249,12 +381,21 @@ class Structure(object):
         return img[self.indices]
 
     def calculate_sum_values(self, img =None):
+        '''
+        Calculate the sum of the image values of the structure
+        '''
         self._sum_values = np.nansum(self.get_values(img=img))
 
     def calculate_geom_cent(self):
+        '''
+        Calculate the geometric center of the structure.
+        '''
         self._geom_cent = np.mean(self.indices,axis=1)
 
     def calculate_weight_cent(self, img=None):
+        '''
+        Calculate the weighted center of the structure.
+        '''
         if img is None:
             print('Error: must input image!')
             return
@@ -266,6 +407,9 @@ class Structure(object):
         self._weight_cent = wcent
 
     def calculate_extreme_pix(self, img=None):
+        '''
+        Calculate the pixel with the extreme value in the structure
+        '''
         if img is None:
             print('Error: must input image!')
             return
@@ -276,6 +420,9 @@ class Structure(object):
         self._extreme_pix = extr
 
     def calculate_surface_area(self, save_points=True,sdir='./'):
+        '''
+        Calculate the surface area of the structure.
+        '''
         from skimage.measure import marching_cubes, mesh_surface_area
         smask = self.get_mask()
         march = marching_cubes(smask)
@@ -286,9 +433,15 @@ class Structure(object):
             np.savetxt(f'{sdir}{fname}', march[0])
 
     def calculate_volume(self):
+        '''
+        Calculate the volume of the structure
+        '''
         self._volume = self.npix
 
     def calculate_sphericity(self,sdir='./',save_points=False):
+        '''
+        Calculate the sphericity of the structure.
+        '''
         if self.volume is None:
             self.calculate_volume()
         if self.surface_area is None:

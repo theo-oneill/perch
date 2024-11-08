@@ -9,6 +9,31 @@ hnames = {0: '$H_0$', 1: '$H_1$', 2: '$H_2$'}
 
 class PH(object):
 
+    '''
+    Base persistent homology class.
+
+    Attributes:
+    -----------
+    data : np.ndarray
+        Input data array.
+    data_prep : np.ndarray
+        Prepared data array for PH computation.
+    n_dim : int
+    max_Hi : int
+        Maximum homology dimension to compute.
+    generators : np.ndarray
+        Persistent homology generators.
+    strucs : perch.Structures
+        Structure object.
+    ph_fxn : function
+        Function for computing PH (cripser or pycripser).
+    noise : float
+        Noise map.
+
+
+
+    '''
+
     def __init__(self):
         self.data = None
         self.data_prep = None
@@ -23,16 +48,50 @@ class PH(object):
     ## compute PH (or load from stored)
 
     def prep_img(self):
+
+        '''
+        Prepare image for PH computation.
+
+        '''
         img_prep = copy.deepcopy(self.data)
         img_prep = -img_prep
         if self.n_dim == 2:
+            img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
+            '''if np.isfinite(img_prep[0,0]):
                 img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
+            else:
+                fin_use = np.where(np.isfinite(img_prep))
+                img_prep[fin_use[0][0]:fin_use[0][0]+1,fin_use[1][0]:fin_use[1][0]+1] = np.nanmin(img_prep) * 2'''
         if self.n_dim == 3:
                 img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2#'''
         return img_prep
 
     def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
                     engine='C', noise=None):
+
+        '''
+        Compute persistent homology.
+
+        Parameters:
+        -----------
+        data : np.ndarray
+            Input data array.
+        max_Hi : int
+            Maximum homology dimension to compute.
+        wcs : astropy.wcs.WCS
+            WCS object.
+        flip_data : bool
+            Flip data array.
+        verbose : bool
+            Print progress.
+        embedded : bool
+            Compute embedded PH.
+        engine : str
+            PH computation engine ('C' or 'py').
+        noise : float
+            Noise map.
+
+        '''
 
         self = PH()
         self.data = data
@@ -72,10 +131,10 @@ class PH(object):
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
             ph_all[:,2] = -ph_all[:,2]
-            '''base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
+            base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
             ph_all = ph_all[~base_struc]
             base_struc = ph_all[:, 2] == -2 * np.nanmin(-self.data)
-            ph_all = ph_all[~base_struc]'''
+            ph_all = ph_all[~base_struc]#'''
             #print('flipping observed deaths')
 
         # remove generators that originate from nans
@@ -94,9 +153,16 @@ class PH(object):
         return self
 
     def export_generators(self, fname, odir='./'):
+        '''
+        Export generators to file.
+        '''
         np.savetxt(f'{odir}{fname}', self.generators)
 
     def load_from(fname, odir='./',data=None,wcs=None, max_Hi=None,conv_fac=None, noise=None):
+        '''
+        Load generators from file.
+
+        '''
 
         self = PH()
         self.data = data
@@ -135,6 +201,37 @@ class PH(object):
                       min_death=None, max_death=None, min_life_norm_birth=None,min_life_norm_death=None,inds_dir=None,
                mask=None):
 
+        '''
+        Filter structures.
+
+        Parameters:
+        -----------
+        dimension : int
+            Homology dimension.
+        min_life : float
+            Minimum lifetime.
+        max_life : float
+            Maximum lifetime.
+        min_birth : float
+            Minimum birth.
+        max_birth : float
+            Maximum birth.
+        min_death : float
+            Minimum death.
+        max_death : float
+            Maximum death.
+        min_life_norm_birth : float
+            Minimum normalized lifetime at birth.
+        min_life_norm_death : float
+            Minimum normalized lifetime at death.
+        inds_dir : str
+            Directory for saving/loading indices.
+        mask : np.ndarray
+            Mask for filtering.
+
+
+        '''
+
         ppd = self.generators
         if mask is not None:
             ppd = ppd[mask]
@@ -166,6 +263,16 @@ class PH(object):
 
     def barcode(self,ax=None):#,dimensions=None):
 
+        '''
+        Plot barcode.
+
+        Parameters:
+        -----------
+        ax : matplotlib.pyplot.axis
+            Axis object.
+
+        '''
+
         '''if dimensions == None:
             dimensions = list(np.unique(self.generators[:,0]).astype('int'))
         if type(dimensions) != list:
@@ -191,6 +298,18 @@ class PH(object):
 
     def pers_diagram(self,ax=None,dimensions=None):
 
+        '''
+        Plot persistence diagram.
+
+        Parameters:
+        -----------
+        ax : matplotlib.pyplot.axis
+            Axis object.
+        dimensions : list
+            Homology dimensions.
+
+        '''
+
         if dimensions == None:
             dimensions = list(np.unique(self.generators[:,0]).astype('int'))
         if type(dimensions) != list:
@@ -215,6 +334,18 @@ class PH(object):
         fig.tight_layout()
 
     def lifetime_diagram(self,ax=None,dimensions=None):
+
+        '''
+        Plot lifetime diagram.
+
+        Parameters:
+        -----------
+        ax : matplotlib.pyplot.axis
+            Axis object.
+        dimensions : list
+            Homology dimensions.
+
+        '''
 
         if dimensions == None:
             dimensions = list(np.unique(self.generators[:,0]).astype('int'))

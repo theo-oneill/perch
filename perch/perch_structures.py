@@ -6,6 +6,26 @@ import jax.numpy as jnp
 
 class Structures(object):
 
+    '''
+    Class for managing a collection of Structure objects.
+
+    Parameters:
+    -----------
+    structures : dict
+        Dictionary of Structure objects.
+    img_shape : tuple
+        Shape of the image.
+    wcs : astropy.wcs.WCS
+        World Coordinate System of the image.
+    struc_map : np.ndarray
+        Map of structure IDs.
+    level_map : np.ndarray
+        Map of structure levels.
+    inds_dir : str
+        Directory to save/load indices.
+
+    '''
+
     ###########################################################################
     ###########################################################################
 
@@ -40,115 +60,199 @@ class Structures(object):
 
     @property
     def trunk(self):
+        '''
+        Return the trunk of the structure hierarchy.
+        '''
         return self._trunk
 
     @property
     def structure_keys(self):
+        '''
+        Return the keys of the structures dictionary.
+        '''
         return self.structures.keys()
 
     @property
     def all_structures(self):
+        '''
+        Return a list of all structures.
+        '''
         return [self.structures[j] for j in self.structure_keys]
 
     @property
     def leaves(self):
+        '''
+        Return the leaves of the structure hierarchy.
+        '''
         return self._leaves
 
     #@property
     def saved_indices_exist(self):
+        '''
+        Check if indices have been saved for all structures.
+        '''
         return [self.structures[j].saved_indices_exist(sdir=self.sdir) for j in self.structure_keys]
 
     @property
     def n_struc(self):
+        '''
+        Return the number of structures.
+        '''
         return len(self.structure_keys)
 
     @property
     def npix(self):
+        '''
+        Return the number of pixels in each structure.
+        '''
         return np.array([self.structures[i].npix for i in self.structure_keys])
 
     @property
     def birth(self):
+        '''
+        Return the birth time of each structure.
+        '''
         return np.array([self.structures[i].birth for i in self.structure_keys])
 
     @property
     def death(self):
+        '''
+        Return the death time of each structure.
+        '''
         return np.array([self.structures[i].death for i in self.structure_keys])
 
     @property
     def equiv_radius(self):
+        '''
+        Return the equivalent radius of each structure.
+        '''
         return np.array([self.structures[i].equiv_radius for i in self.structure_keys])
 
     @property
     def birthpix(self):
+        '''
+        Return the birth pixel of each structure.
+        '''
         return np.array([self.structures[i].birthpix for i in self.structure_keys])
 
     @property
     def deathpix(self):
+        '''
+        Return the death pixel of each structure.
+        '''
         return np.array([self.structures[i].deathpix for i in self.structure_keys])
 
     @property
     def htype(self):
+        '''
+        Return the homology type of each structure.
+        '''
         return np.array([self.structures[i].htype for i in self.structure_keys])
 
     @property
     def persistence(self):
+        '''
+        Return the persistence of each structure.
+        '''
         return np.array([self.structures[i].persistence for i in self.structure_keys])
 
     @property
     def norm_life(self):
+        '''
+        Return the normalized life of each structure.
+        '''
         return self.persistence / self.birth
 
     @property
     def sphericity(self):
+        '''
+        Return the sphericity of each structure.
+        '''
         return np.array([self.structures[i].sphericity for i in self.structure_keys])
 
     @property
     def id(self):
+        '''
+        Return the ID of each structure.
+        '''
         return np.array([self.structures[i].id for i in self.structure_keys])
 
     @property
     def id_ph(self):
+        '''
+        Return the ID_PH of each structure.
+        '''
         return np.array([self.structures[i].id_ph for i in self.structure_keys])
 
     @property
     def geom_cent(self):
+        '''
+        Return the geometric center of each structure.
+        '''
         return np.array([self.structures[i].geom_cent for i in self.structure_keys])
 
     @property
     def parent(self):
+        '''
+        Return the parent of each structure.
+        '''
         return np.array([self.structures[i].parent for i in self.structure_keys])
 
     @property
     def children(self):
-        return np.array([self.structures[i].children for i in self.structure_keys])
+        '''
+        Return the children of each structure.
+        '''
+        return [self.structures[i].children for i in self.structure_keys]
 
     @property
     def descendants(self):
+        '''
+        Return the descendants of each structure.
+        '''
         return [self.structures[i].descendants for i in self.structure_keys]
 
     @property
     def n_children(self):
+        '''
+        Return the number of children of each structure.
+        '''
         return np.array([self.structures[i].n_children for i in self.structure_keys])
 
     @property
     def n_descendants(self):
+        '''
+        Return the number of descendants of each structure.
+        '''
         return np.array([self.structures[i].n_descendants for i in self.structure_keys])
 
     @property
     def is_leaf(self):
+        '''
+        Return whether each structure is a leaf.
+        '''
         return np.array([self.structures[i].is_leaf for i in self.structure_keys])
 
     @property
     def level(self):
+        '''
+        Return the level of each structure.
+        '''
         return np.array([self.structures[i].level for i in self.structure_keys])
 
     @property
     def frac_npix_parent(self):
+        '''
+        Return the fraction of pixels of each structure relative to its parent.
+        '''
         if self._frac_npix_parent is None:
             self.calc_frac_npix_parent()
         return  self._frac_npix_parent
 
     def calc_frac_npix_parent(self):
+        '''
+        Calculate the fraction of pixels of each structure relative to its parent.
+        '''
         frac_parent = np.full(self.n_struc, np.nan)
         for j in range(self.n_struc):
             if self.parent[j] is not None:
@@ -159,6 +263,9 @@ class Structures(object):
 
     @property
     def birthpix_coord(self):
+        '''
+        Return the WCS birth coordinates of each structure.
+        '''
         if self.wcs is None:
             print('Error: must input wcs!')
             return
@@ -166,6 +273,9 @@ class Structures(object):
 
     @property
     def deathpix_coord(self):
+        '''
+        Return the  WCS death coordinates of each structure.
+        '''
         if self.wcs is None:
             print('Error: must input wcs!')
             return
@@ -173,6 +283,9 @@ class Structures(object):
 
     @property
     def geom_cent_coord(self):
+        '''
+        Return the WCS geometric center coordinates of each structure.
+        '''
         if self.wcs is None:
             print('Error: must input wcs!')
             return
@@ -180,6 +293,9 @@ class Structures(object):
 
     @property
     def equiv_radius_coord(self):
+        '''
+        Return the WCS equivalent radius of each structure.
+        '''
         ## NOTE: ASSUMES EVEN PIXEL SCALES!!!
         if self.wcs is None:
             print('Error: must input wcs!')
@@ -188,6 +304,9 @@ class Structures(object):
 
     @property
     def volume_coord(self):
+        '''
+        Return the WCS volume of each structure.
+        '''
         if self.wcs is None:
             print('Error: must input wcs!')
             return
@@ -198,6 +317,15 @@ class Structures(object):
     ###########################################################################
 
     def load_mask(self, s_include = None):
+        '''
+        Load a mask of the structures in s_include.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+
+        '''
         if s_include is None:
             s_include = self.structure_keys
         if (len(s_include) == 1 )& (type(s_include) != list):
@@ -212,6 +340,17 @@ class Structures(object):
         return mask
 
     def get_mask(self, s_include = None, use_descendants=True):
+        ''''
+        Get a mask of the structures in s_include.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+        use_descendants : bool
+            Include descendants of structures in s_include.
+
+        '''
         if s_include is None:
             s_include = list(self.structure_keys)
         if use_descendants:
@@ -220,14 +359,36 @@ class Structures(object):
         return mask
 
     def get_struc_map_mask(self, s_include = None, use_descendants=True):
+        '''
+        Get a mask of the structures in s_include.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+        use_descendants : bool
+            Include descendants of structures in s_include.
+        '''
         if s_include is None:
             s_include = list(self.structure_keys)
         if use_descendants:
             s_include = np.unique(np.hstack([self.descendants[s_include[i]] for i in range(len(s_include))]))
         mask = np.isin(self.struc_map, s_include)
-        return self.struc_map * mask
+        struc_map_mask = np.where(mask, self.struc_map, np.nan)
+        return struc_map_mask
 
     def sort_keys(self, s_include = None, invert=False):
+        '''
+        Sort the structure keys.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+        invert : bool
+            Invert the sorting.
+
+        '''
         if s_include is None:
             s_include = list(self.structure_keys)
         if not invert:
@@ -243,6 +404,13 @@ class Structures(object):
     def _set_descendants(self, s = None):
         """
         Set descendants as a flattened list of all child leaves and branches.
+
+        Parameters:
+        -----------
+        s : int
+            Structure ID.
+
+        From: astrodendro
         """
         if s is None:
             return
@@ -262,6 +430,9 @@ class Structures(object):
         #return self.structures[s]._descendants
 
     def _clear_hierarchy(self):
+        '''
+        Clear the hierarchy.
+        '''
         #print('Warning: clearing hierarchy!!!')
         for s in list(self.structure_keys):
             self.structures[s]._parent = None
@@ -270,6 +441,15 @@ class Structures(object):
 
 
     def id_mask(self,s_include=None):
+        '''
+        Create a masked  structure ID map.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+
+        '''
         if s_include is None:
             s_include = self.structure_keys
         if (len(s_include) == 1 )& (type(s_include) != list):
@@ -285,33 +465,80 @@ class Structures(object):
 
     ########################################################################
 
-    def load_hierarchy(self,  parent_df):
+    def load_hierarchy(self,  parent_df, load_level=True):
 
+        '''
+        Load the structure hierarchy.
+
+        Parameters:
+        -----------
+        parent_df : pd.DataFrame
+            DataFrame of parent IDs.
+        load_level : bool
+            Load the level of each structure.
+        '''
+
+        print('Assigning parents...')
         for i in range(self.n_struc):
             parent_val =  parent_df['Parent_ID'].values[parent_df['ID'].values == self.id[i]][0]
-            if parent_val is >= 0:
-                self.structures[i]._parent = int(parent_val)#int(self.structures[i]._parent )
+            if parent_val >= 0:
+                self.structures[i]._parent = int(parent_val)
 
         ### label children
+        print('Assigning children...')
         has_parent = np.where(self.parent != None)[0]
         for s in has_parent:
             s_parent = self.structures[s].parent
             self.structures[s_parent]._children.extend([int(s)])
+
+        print('Assigning trunk and leaves...')
         self._trunk = [structure for structure in self.all_structures if structure.parent == None]
         self._leaves = [structure for structure in self.all_structures if structure.is_leaf]
 
+        print('Assigning descendants...')
         for i in range(self.n_struc):
             self._set_descendants(i)
 
+        #'''
+        '''
+        print('Assigning npix...')
+        pbar = tqdm(total=self.n_struc, unit='structures')
         for i in range(self.n_struc):
             i_desc = self.structures[i].descendants
             struc_mask = np.isin(self.struc_map, i_desc)
-            self.structures[i]._npix = np.sum(struc_mask)
-            self.structures[i]._level = np.nanmax(np.where(self.struc_map==self.structures[i].id,self.level_map,np.nan))
+            self.structures[i]._npix = np.nansum(struc_mask)
+            if load_level:
+                self.structures[i]._level = np.nanmax(np.where(self.struc_map==self.structures[i].id,self.level_map,np.nan))
+            pbar.update(1)
+            #'''
 
+        print('Validating assignments...')
+        self.check_segmentation_success()
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
-                                  export_parent=True,odir='./',fname='saved_parents'):
+                                  export_parent=True,odir='./',fname='run',verbose=False):
+
+        '''
+        Compute the segment hierarchy.
+
+        Parameters:
+        -----------
+        img_jnp : jnp.ndarray
+            Image data.
+        s_include : list
+            List of structure IDs to include.
+        clobber : bool
+            Clear the hierarchy.
+        export_parent : bool
+            Export the parent DataFrame.
+        odir : str
+            Output directory.
+        fname : str
+            File name.
+        verbose : bool
+            Verbose output.
+
+        '''
 
         mask_s = np.full((self._imgshape),np.nan)
         mask_count = np.full((self._imgshape), 0.)
@@ -329,7 +556,8 @@ class Structures(object):
             dim_invert = 1
         flag_invert = False#self.htype[0]!=dim_invert
         ascend_death = self.sort_keys(s_include=s_include,invert=flag_invert)
-        pbar = tqdm(total=len(ascend_death), unit='structures')
+        if verbose:
+            pbar = tqdm(total=len(ascend_death), unit='structures')
         for s in ascend_death:
             struc = self.structures[s]
             struc.compute_segment(img=img_jnp)
@@ -347,7 +575,8 @@ class Structures(object):
             #multi_inds_unique = np.unravel_index(inds_unique, self._imgshape)
             mask_s[struc_multi_inds] = int(s)
             struc.clear_indices()
-            pbar.update(1)
+            if verbose:
+                pbar.update(1)
 
         ### label children
         has_parent = np.where(self.parent != None)[0]
@@ -362,6 +591,8 @@ class Structures(object):
         self.struc_map = mask_s
         self.level_map = np.where(mask_count>0,mask_count,np.nan)
 
+        self.check_segmentation_success()
+
         if export_parent:
             import pandas as pd
             parent_df = pd.DataFrame({'ID_PH': self.id_ph,
@@ -370,7 +601,34 @@ class Structures(object):
             parent_df.to_csv(f'{odir}/{fname}_parents.csv', index=False)
 
     ########################################################################
+
+    def check_segmentation_success(self):
+
+        '''
+        Check if the segmentation was successful.
+
+        '''
+        unique_struc = self.n_struc
+        print(f'{unique_struc} total structures')
+        unique_seg = np.unique(self.struc_map)
+        unique_seg = unique_seg[~np.isnan(unique_seg)]
+        n_unique = len(unique_seg)
+        print(f'{n_unique} structures in segmented map')
+        if unique_struc == n_unique:
+            print('Segmentation successful!')
+        if unique_struc != n_unique:
+            print('Uh oh!')
+
     def compute_segment(self, img_jnp=None):
+        '''
+        Compute the segmentation of each structure.
+
+        Parameters:
+        -----------
+        img_jnp : jnp.ndarray
+            Image data.
+
+        '''
         pbar = tqdm(total=self.n_struc, unit='structures')
         for i in range(self.n_struc):
             struc = self.structures[i]
@@ -383,6 +641,20 @@ class Structures(object):
             pbar.update(1)
 
     def compute_hierarchy(self,  s_include = None, return_masks=False, clobber=True):
+
+        '''
+        Compute the structure hierarchy.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+        return_masks : bool
+            Return masks.
+        clobber : bool
+            Clear the hierarchy.
+
+        '''
         mask_count = np.full((self._imgshape), 0.)
         mask_s = np.full((self._imgshape),np.nan)
 
@@ -421,12 +693,24 @@ class Structures(object):
         self.struc_map = mask_s
         self.level_map = mask_count
 
+        self.check_segmentation_success()
+
         if return_masks:
             return mask_s# mask_count,
 
 
     ########################################################################
     def export_struc_map(self, fname='run', odir = './'):
+        '''
+        Export the structure map.
+
+        Parameters:
+        -----------
+        fname : str
+            File name.
+        odir : str
+            Output directory.
+        '''
         if self.struc_map is None:
             print('Error: must compute or load hierarchy first!')
             return
@@ -441,6 +725,17 @@ class Structures(object):
         hdul.writeto(f'{odir}{fname}_struc_map.fits', overwrite=True)
 
     def export_level_map(self, fname='run', odir = './'):
+        '''
+        Export the level map.
+
+        Parameters:
+        -----------
+        fname : str
+            File name.
+        odir : str
+            Output directory.
+
+        '''
         if self.level_map is None:
             print('Error: must compute or load hierarchy first!')
             return
@@ -455,14 +750,30 @@ class Structures(object):
         hdul.writeto(f'{odir}{fname}_level_map.fits', overwrite=True)
 
     def load_struc_map(self, fname='run', odir = './'):
+        '''
+        Load the structure map.
+
+        Parameters:
+        -----------
+        fname : str
+            File name.
+        odir : str
+            Output directory.
+        '''
         from astropy.io import fits
         hdul = fits.open(f'{odir}{fname}_struc_map.fits')
         self.struc_map = hdul[0].data
 
     def clear_struc_map(self):
+        '''
+        Clear the structure map.
+        '''
         self.struc_map = None
 
     def export_collection(self, fname='run', odir='./', include_map=False):
+        '''
+        Export the structure collection.
+        '''
         import pickle
         pickle.dump(self, open(f'{odir}{fname}_structures.p', 'wb'))
 
