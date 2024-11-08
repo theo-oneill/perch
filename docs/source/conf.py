@@ -9,6 +9,10 @@ author = "O'Neill"
 release = '0.1'
 version = '0.1.0'
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../'))
+
 # -- General configuration
 
 extensions = [
@@ -18,6 +22,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
 ]
+autosummary_generate = True
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
