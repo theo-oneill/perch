@@ -1,4 +1,4 @@
-perch.perch\_ph
+﻿perch.perch\_ph
 ===============
 
 .. automodule:: perch.perch_ph
