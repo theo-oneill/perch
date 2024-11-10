@@ -1,8 +1,7 @@
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-from perch.perch_utils import notify
-from perch.perch_structures import Structures
+from perch.structures import Structures
 
 hcol = {0: 'palevioletred', 1: 'mediumpurple', 2: 'deepskyblue'}
 hnames = {0: '$H_0$', 1: '$H_1$', 2: '$H_2$'}
@@ -17,8 +16,9 @@ class PH(object):
     data : np.ndarray
         Input data array.
     data_prep : np.ndarray
-        Prepared data array for PH computation.
+        Internal prepared data array for PH computation.
     n_dim : int
+        Number of dimensions in image.
     max_Hi : int
         Maximum homology dimension to compute.
     generators : np.ndarray
@@ -29,8 +29,6 @@ class PH(object):
         Function for computing PH (cripser or pycripser).
     noise : float
         Noise map.
-
-
 
     '''
 
@@ -48,10 +46,8 @@ class PH(object):
     ## compute PH (or load from stored)
 
     def prep_img(self):
-
         '''
         Prepare image for PH computation.
-
         '''
         img_prep = copy.deepcopy(self.data)
         img_prep = -img_prep
@@ -66,7 +62,7 @@ class PH(object):
                 img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2#'''
         return img_prep
 
-    def compute_hom(data, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
+    def compute_hom(data=None, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
                     engine='C', noise=None):
 
         '''
@@ -88,8 +84,8 @@ class PH(object):
             Compute embedded PH.
         engine : str
             PH computation engine ('C' or 'py').
-        noise : float
-            Noise map.
+        noise : np.ndarray
+            Noise map of same shape as data.
 
         '''
 
@@ -126,7 +122,6 @@ class PH(object):
         if verbose:
             t2 = time.time()
             print(f'\n PH Computation Complete! \n {t2-t1:.1f}s elapsed')
-            #notify("Alert", f"PH Computation Complete!")
 
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
@@ -155,12 +150,37 @@ class PH(object):
     def export_generators(self, fname, odir='./'):
         '''
         Export generators to file.
+
+        Parameters:
+        -----------
+        fname : str
+            File name.
+        odir : str
+            Output directory.
+
         '''
         np.savetxt(f'{odir}{fname}', self.generators)
 
     def load_from(fname, odir='./',data=None,wcs=None, max_Hi=None,conv_fac=None, noise=None):
         '''
         Load generators from file.
+
+        Parameters:
+        -----------
+        fname : str
+            File name.
+        odir : str
+            Output directory.
+        data : np.ndarray
+            Input data array.
+        wcs : astropy.wcs.WCS
+            WCS object.
+        max_Hi : int
+            Maximum homology dimension to compute.
+        conv_fac : float
+            Conversion factor.
+        noise : np.ndarray
+            Noise map of same shape as data.
 
         '''
 

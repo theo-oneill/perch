@@ -2,18 +2,8 @@
 import numpy as np
 import cc3d
 import os
-from jax import jit
 import jax.numpy as jnp
-
-def filter_super(X,thresh):
-    return X > thresh
-
-def filter_sub(X,thresh):
-    return X < thresh
-
-
-filter_super_jit = jit(filter_super)
-filter_sub_jit = jit(filter_sub)
+from perch.utils import filter_super_jit, filter_sub_jit
 
 class Structure(object):
 
@@ -26,10 +16,10 @@ class Structure(object):
         Array of persistence information. The first element is the homology type, the second is the birth time, the third is the death time, the next three are the birth pixel coordinates, and the last three are the death pixel coordinates.
 
     id : int
-        Unique identifier for the structure in the subsection of structures.
+        Unique identifier for the structure, in the subset of selected structures.
 
     id_ph : int
-        Unique identifier for the structure in the full persistence diagram.
+        Unique identifier for the structure, in the full persistence diagram.
 
     img_shape : tuple
         Shape of the image the structure is segmented from.
@@ -371,6 +361,11 @@ class Structure(object):
     def get_values(self, img=None):
         '''
         Get image values of the structure.
+
+        Parameters
+        ----------
+        img : array-like
+            Image to get values from.
         '''
         if img is None:
             print('Error: must input image!')
@@ -383,6 +378,12 @@ class Structure(object):
     def calculate_sum_values(self, img =None):
         '''
         Calculate the sum of the image values of the structure
+
+        Parameters
+        ----------
+        img : array-like
+            Image to get values from.
+
         '''
         self._sum_values = np.nansum(self.get_values(img=img))
 
@@ -395,6 +396,12 @@ class Structure(object):
     def calculate_weight_cent(self, img=None):
         '''
         Calculate the weighted center of the structure.
+
+        Parameters
+        ----------
+        img : array-like
+            Image to get values from.
+
         '''
         if img is None:
             print('Error: must input image!')
@@ -409,6 +416,12 @@ class Structure(object):
     def calculate_extreme_pix(self, img=None):
         '''
         Calculate the pixel with the extreme value in the structure
+
+        Parameters
+        ----------
+        img : array-like
+            Image to get values from.
+
         '''
         if img is None:
             print('Error: must input image!')
@@ -421,7 +434,15 @@ class Structure(object):
 
     def calculate_surface_area(self, save_points=True,sdir='./'):
         '''
-        Calculate the surface area of the structure.
+        Calculate the surface area of the structure using marching cubes.
+
+        Parameters
+        ----------
+        save_points : bool
+            Save the surface points.
+        sdir : str
+            Directory to save surface points.
+
         '''
         from skimage.measure import marching_cubes, mesh_surface_area
         smask = self.get_mask()
@@ -441,6 +462,14 @@ class Structure(object):
     def calculate_sphericity(self,sdir='./',save_points=False):
         '''
         Calculate the sphericity of the structure.
+
+        Parameters
+        ----------
+        sdir : str
+            Directory to save surface points.
+        save_points : bool
+            Save the surface points.
+
         '''
         if self.volume is None:
             self.calculate_volume()

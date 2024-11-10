@@ -13,6 +13,12 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
+import mock
+
+MOCK_MODULES = ['numpy', 'matplotlib', 'matplotlib.pyplot', 'cc3d', 'jax', 'jax.numpy', 'tqdm']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+
 # -- General configuration
 
 extensions = [
@@ -25,6 +31,13 @@ extensions = [
 ]
 autosummary_generate = True
 autosummary_imported_members = True
+
+autodoc_default_options = {
+    'members': True,           # Document class members
+    'undoc-members': True,     # Include even undocumented members
+    'inherited-members': True, # Include inherited members
+    'show-inheritance': True,  # Show class inheritance
+}
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),

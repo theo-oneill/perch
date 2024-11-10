@@ -1,6 +1,6 @@
 import numpy  as np
 from tqdm import tqdm
-from perch.perch_structure import *
+from perch.structure import *
 import jax.numpy as jnp
 
 
