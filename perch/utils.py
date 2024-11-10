@@ -8,7 +8,7 @@ on run argv
   display notification (item 2 of argv) with title (item 1 of argv)
 end run
 '''
-def notify(title, text):
+def _notify(title, text):
     '''
     Send a notification to the user
     '''

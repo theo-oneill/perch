@@ -1,10 +1,6 @@
 import copy
 import numpy as np
-import matplotlib.pyplot as plt
 from perch.structures import Structures
-
-hcol = {0: 'palevioletred', 1: 'mediumpurple', 2: 'deepskyblue'}
-hnames = {0: '$H_0$', 1: '$H_1$', 2: '$H_2$'}
 
 class PH(object):
 
@@ -15,8 +11,6 @@ class PH(object):
     -----------
     data : np.ndarray
         Input data array.
-    data_prep : np.ndarray
-        Internal prepared data array for PH computation.
     n_dim : int
         Number of dimensions in image.
     max_Hi : int
@@ -45,13 +39,14 @@ class PH(object):
     ####################################################
     ## compute PH (or load from stored)
 
-    def prep_img(self):
+    def _prep_img(self):
         '''
         Prepare image for PH computation.
         '''
         img_prep = copy.deepcopy(self.data)
         img_prep = -img_prep
         if self.n_dim == 2:
+            # TO DO: fix this to go to first finite pixel
             img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
             '''if np.isfinite(img_prep[0,0]):
                 img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
@@ -87,15 +82,20 @@ class PH(object):
         noise : np.ndarray
             Noise map of same shape as data.
 
+        Returns:
+        --------
+        perch.PH
+            Persistent homology object.
         '''
 
+        # create PH object
         self = PH()
         self.data = data
         self.n_dim = len(data.shape)
         self.wcs = wcs
         self.img_shape = data.shape
         if flip_data:
-            self.data_prep = self.prep_img()
+            self.data_prep = self._prep_img()
         if not flip_data:
             self.data_prep = self.data
         if max_Hi is None:
@@ -103,10 +103,10 @@ class PH(object):
         self.max_Hi = max_Hi
         self.noise = noise
 
+        # define PH computation engine
         if engine == 'C':
             import cripser
             self.ph_fxn = cripser.computePH
-
         if engine == 'py':
             from perch.py_cripser.cubicalripser_pybind import compute_ph
             self.ph_fxn = compute_ph
@@ -116,6 +116,7 @@ class PH(object):
             print('Computing PH... \n')
             t1 = time.time()
 
+        # compute PH
         #ph_all = cripser.computePH(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
         ph_all = self.ph_fxn(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
 
@@ -123,6 +124,7 @@ class PH(object):
             t2 = time.time()
             print(f'\n PH Computation Complete! \n {t2-t1:.1f}s elapsed')
 
+        # flip data back
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
             ph_all[:,2] = -ph_all[:,2]
@@ -138,9 +140,11 @@ class PH(object):
         base_struc = np.isnan(ph_all[:, 1])
         ph_all = ph_all[~base_struc]#'''
 
+        # add homology id
         h_id = np.arange(len(ph_all))
         h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
 
+        # store generators
         self.generators = h_all
         self.strucs = Structures(structures=h_all, img_shape=self.img_shape, wcs=self.wcs,inds_dir=None)
         self.data_prep = None # save memory
@@ -182,8 +186,14 @@ class PH(object):
         noise : np.ndarray
             Noise map of same shape as data.
 
+        Returns:
+        --------
+        perch.PH
+            Persistent homology object.
+
         '''
 
+        # create PH object
         self = PH()
         self.data = data
         self.n_dim = len(data.shape)
@@ -193,7 +203,9 @@ class PH(object):
         self.max_Hi = max_Hi
         self.noise = noise
 
+        # load generators
         gens = np.loadtxt(f'{odir}{fname}')
+        # convert to physical units if necessary
         if conv_fac is not None:
             gens[:,1:3] *= conv_fac
 
@@ -203,10 +215,12 @@ class PH(object):
         base_struc = np.isnan(gens[:, 1])
         gens = gens[~base_struc]
 
+        # add homology id if not present
         if np.shape(gens)[1] == 9:
             h_id = np.arange(len(gens))
             gens = np.hstack((gens, np.array(h_id).reshape(-1, 1)))
 
+        # store generators
         self.generators = gens
         self.img_shape = data.shape
         self.strucs = Structures(structures=gens, img_shape=self.img_shape, wcs=self.wcs,inds_dir=None)
@@ -249,13 +263,21 @@ class PH(object):
         mask : np.ndarray
             Mask for filtering.
 
+        Returns:
+        --------
+        perch.Structures
+            Filtered structures.
 
         '''
 
         ppd = self.generators
+
+        # apply mask if provided
         if mask is not None:
             ppd = ppd[mask]
             return Structures(structures=ppd, img_shape=self.img_shape, wcs=self.wcs,inds_dir=inds_dir)
+
+        # apply filters if provided
         if mask is None:
             if dimension is not None:
                 ppd = ppd[ppd[:, 0] == dimension]
@@ -278,112 +300,4 @@ class PH(object):
 
             return Structures(structures=ppd, img_shape=self.img_shape, wcs=self.wcs,inds_dir=inds_dir)
 
-    ####################################################
-    ## plotting functions
 
-    def barcode(self,ax=None):#,dimensions=None):
-
-        '''
-        Plot barcode.
-
-        Parameters:
-        -----------
-        ax : matplotlib.pyplot.axis
-            Axis object.
-
-        '''
-
-        '''if dimensions == None:
-            dimensions = list(np.unique(self.generators[:,0]).astype('int'))
-        if type(dimensions) != list:
-            print('fixing')
-            dimensions = list(dimensions)
-
-        plotcol = [self.filter(dimension=d) for d in dimensions]
-        ravpc = self.generators#np.array(plotcol).ravel()'''
-        plotcol = self.generators
-
-        #plotcol = self.generators
-        if ax is None:
-            fig, ax = plt.subplots(1,1,figsize=(8,10))
-        for k in range(len(plotcol)):
-            p_i = plotcol[k]
-            ax.plot(np.array([p_i[1], p_i[2]]), [k, k], c=hcol[p_i[0]])
-        ax.set_xlabel('Birth –-- Death')
-        ax.set_ylabel('Structure Number')
-        #ax.set_xscale('linear')
-        markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='') for color in list(hcol.values())[0:self.max_Hi+1]]
-        ax.legend(markers, hnames.values(), numpoints=1,fontsize=14)
-        fig.tight_layout()
-
-    def pers_diagram(self,ax=None,dimensions=None):
-
-        '''
-        Plot persistence diagram.
-
-        Parameters:
-        -----------
-        ax : matplotlib.pyplot.axis
-            Axis object.
-        dimensions : list
-            Homology dimensions.
-
-        '''
-
-        if dimensions == None:
-            dimensions = list(np.unique(self.generators[:,0]).astype('int'))
-        if type(dimensions) != list:
-            print('fixing')
-            dimensions = list(dimensions)
-
-        plotcol = [self.filter(dimension=d) for d in dimensions]
-        ravpc = self.generators#np.array(plotcol).ravel()
-
-        if ax is None:
-            fig, ax = plt.subplots(1,1,figsize=(8,8))
-        for d in range(len(dimensions)):
-            ax.scatter(plotcol[d][:,1],plotcol[d][:,2],s=3,alpha=0.5,c=hcol[dimensions[d]])#,c=hcol[plotcol[:,0]])
-        ax.plot([-np.nanmax(np.abs(ravpc[:,1:3])),np.nanmax(np.abs(ravpc[:,1:3]))],
-                [-np.nanmax(np.abs(ravpc[:,1:3])),np.nanmax(np.abs(ravpc[:,1:3]))],c='grey',ls='--',alpha=0.5,lw=0.5)
-        ax.set_xlim(1.1*np.nanmin(ravpc[:,1]),1.1*np.nanmax(ravpc[:,1]))
-        ax.set_ylim(1.1*np.nanmin(ravpc[:,2]),1.1*np.nanmax(ravpc[:,2]))
-        ax.set_xlabel('Birth',fontsize=14)
-        ax.set_ylabel('Death',fontsize=14)
-        markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='') for color in list(hcol.values())[0:self.max_Hi+1]]
-        ax.legend(markers, hnames.values(), numpoints=1,fontsize=14)
-        fig.tight_layout()
-
-    def lifetime_diagram(self,ax=None,dimensions=None):
-
-        '''
-        Plot lifetime diagram.
-
-        Parameters:
-        -----------
-        ax : matplotlib.pyplot.axis
-            Axis object.
-        dimensions : list
-            Homology dimensions.
-
-        '''
-
-        if dimensions == None:
-            dimensions = list(np.unique(self.generators[:,0]).astype('int'))
-        if type(dimensions) != list:
-            print('fixing')
-            dimensions = list(dimensions)
-
-        plotcol = [self.filter(dimension=d) for d in dimensions]
-        #ravpc = self.generators#np.array(plotcol).ravel()
-
-        if ax is None:
-            fig, ax = plt.subplots(1,1,figsize=(8,8))
-        for d in range(len(dimensions)):
-            ax.scatter(plotcol[d][:,1],np.abs(plotcol[d][:,2]-plotcol[d][:,1]),s=3,alpha=0.5,c=hcol[dimensions[d]])#,c=hcol[plotcol[:,0]])
-        #ax.set_xlim(1.1*np.min(plotcol[:,1]),1.1*np.max(plotcol[:,1]))
-        #ax.set_ylim(1.1*np.min(plotcol[:,2]),1.1*np.max(plotcol[:,2]))
-        ax.set_xlabel('Birth',fontsize=14)
-        ax.set_ylabel('Lifetime',fontsize=14)
-        markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='') for color in list(hcol.values())[0:self.max_Hi+1]]
-        ax.legend(markers, hnames.values(), numpoints=1,fontsize=14)
-        fig.tight_layout()

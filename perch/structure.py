@@ -306,46 +306,13 @@ class Structure(object):
         self._indices = np.ravel_multi_index( np.where(labels_out == comp_use),self._imgshape)
         self._npix = len(self._indices)
 
-    def saved_indices_exist(self):
-        '''
-        Check if saved indices exist.
-        '''
-        fname = f'struc_{self.id_ph}_inds.txt'
-        return os.path.isfile(f'{self.sdir}{fname}')
-
-    def load_indices(self):
-        '''
-        Load saved indices.
-        '''
-        fname = f'struc_{self.id_ph}_inds.txt'
-        #self._indices = tuple(np.loadtxt(f'{sdir}{fname}').astype('int'))
-        self._indices = np.loadtxt(f'{self.sdir}{fname}').astype('int')
-        #if len(np.shape(self._indices)) == 0:
-        #    i0 =  tuple(np.loadtxt(f'{sdir}{fname}').astype('int'))
-        #    self._indices = tuple([np.array([i0[i]]) for i in range(len(i0))])
-        self._npix = self._indices.size
-
-    def save_indices(self):
-        '''
-        Save indices.
-        '''
-        fname = f'struc_{self.id_ph}_inds.txt'
-        np.savetxt(f'{self.sdir}{fname}', self.indices, fmt='%i')
-
-    def clear_indices(self):
+    def _clear_indices(self):
         '''
         Clear indices.
         '''
         self._indices = None
 
-    def set_indices(self, inds):
-        '''
-        Set indices.
-        '''
-        self._indices = inds
-
     ##########################################################
-
 
     def get_mask(self):
         '''

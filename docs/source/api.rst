@@ -10,4 +10,5 @@ API
    perch.structures
    perch.structure
    perch.utils
+   perch.pplot
 

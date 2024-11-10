@@ -21,8 +21,6 @@ class Structures(object):
         Map of structure IDs.
     level_map : np.ndarray
         Map of structure levels.
-    inds_dir : str
-        Directory to save/load indices.
 
     '''
 
@@ -85,13 +83,6 @@ class Structures(object):
         Return the leaves of the structure hierarchy.
         '''
         return self._leaves
-
-    #@property
-    def saved_indices_exist(self):
-        '''
-        Check if indices have been saved for all structures.
-        '''
-        return [self.structures[j].saved_indices_exist(sdir=self.sdir) for j in self.structure_keys]
 
     @property
     def n_struc(self):
@@ -246,10 +237,10 @@ class Structures(object):
         Return the fraction of pixels of each structure relative to its parent.
         '''
         if self._frac_npix_parent is None:
-            self.calc_frac_npix_parent()
+            self._calc_frac_npix_parent()
         return  self._frac_npix_parent
 
-    def calc_frac_npix_parent(self):
+    def _calc_frac_npix_parent(self):
         '''
         Calculate the fraction of pixels of each structure relative to its parent.
         '''
@@ -316,32 +307,9 @@ class Structures(object):
     ###########################################################################
     ###########################################################################
 
-    def load_mask(self, s_include = None):
-        '''
-        Load a mask of the structures in s_include.
-
-        Parameters:
-        -----------
-        s_include : list
-            List of structure IDs to include.
-
-        '''
-        if s_include is None:
-            s_include = self.structure_keys
-        if (len(s_include) == 1 )& (type(s_include) != list):
-            s_include = list(s_include)
-        mask = np.zeros(self._imgshape, dtype=bool)
-        for s in s_include:
-            struc = self.structures[s]
-            struc.load_indices(sdir = self.sdir)
-            struc_multi_inds = np.unravel_index(struc.indices, self._imgshape)
-            struc.clear_indices()
-            mask[struc_multi_inds] = True
-        return mask
-
     def get_mask(self, s_include = None, use_descendants=True):
         ''''
-        Get a mask of the structures in s_include.
+        Get a binary mask of the structures in s_include.
 
         Parameters:
         -----------
@@ -349,6 +317,11 @@ class Structures(object):
             List of structure IDs to include.
         use_descendants : bool
             Include descendants of structures in s_include.
+
+        Returns:
+        --------
+        mask : np.ndarray
+            Binary mask.
 
         '''
         if s_include is None:
@@ -360,7 +333,7 @@ class Structures(object):
 
     def get_struc_map_mask(self, s_include = None, use_descendants=True):
         '''
-        Get a mask of the structures in s_include.
+        Get an ID mask of the structures in s_include.
 
         Parameters:
         -----------
@@ -368,6 +341,11 @@ class Structures(object):
             List of structure IDs to include.
         use_descendants : bool
             Include descendants of structures in s_include.
+
+        Returns:
+        --------
+        struc_map_mask : np.ndarray
+            Masked structure map.
         '''
         if s_include is None:
             s_include = list(self.structure_keys)
@@ -397,6 +375,15 @@ class Structures(object):
             return np.argsort(self.death[s_include])[::-1]
 
     def sort_birth(self, s_include = None):
+        '''
+        Sort the structures by birth time.
+
+        Parameters:
+        -----------
+        s_include : list
+            List of structure IDs to include.
+
+        '''
         if s_include is None:
             s_include = list(self.structure_keys)
         return np.argsort(self.birth[s_include])
@@ -449,6 +436,11 @@ class Structures(object):
         s_include : list
             List of structure IDs to include.
 
+        Returns:
+        --------
+        mask : np.ndarray
+            Masked structure ID map.
+
         '''
         if s_include is None:
             s_include = self.structure_keys
@@ -460,12 +452,12 @@ class Structures(object):
             struc.load_indices(sdir = self.sdir)
             struc_multi_inds = np.unravel_index(struc.indices, self._imgshape)
             mask[struc_multi_inds] = int(s)
-            struc.clear_indices()
+            struc._clear_indices()
         return mask
 
     ########################################################################
 
-    def load_hierarchy(self,  parent_df, load_level=True):
+    def load_hierarchy(self,  parent_df, load_level=True, assign_npix=True):
 
         '''
         Load the structure hierarchy.
@@ -475,7 +467,7 @@ class Structures(object):
         parent_df : pd.DataFrame
             DataFrame of parent IDs.
         load_level : bool
-            Load the level of each structure.
+            Load the level of each structure (slow!).
         '''
 
         print('Assigning parents...')
@@ -500,20 +492,21 @@ class Structures(object):
             self._set_descendants(i)
 
         #'''
-        '''
-        print('Assigning npix...')
-        pbar = tqdm(total=self.n_struc, unit='structures')
-        for i in range(self.n_struc):
-            i_desc = self.structures[i].descendants
-            struc_mask = np.isin(self.struc_map, i_desc)
-            self.structures[i]._npix = np.nansum(struc_mask)
-            if load_level:
-                self.structures[i]._level = np.nanmax(np.where(self.struc_map==self.structures[i].id,self.level_map,np.nan))
-            pbar.update(1)
-            #'''
+        # TO DO: add function to load level and npix instead of reassigning (requires storing in parent_df)
+        if assign_npix:
+            print('Assigning npix...')
+            pbar = tqdm(total=self.n_struc, unit='structures')
+            for i in range(self.n_struc):
+                i_desc = self.structures[i].descendants
+                struc_mask = np.isin(self.struc_map, i_desc)
+                self.structures[i]._npix = np.nansum(struc_mask)
+                if load_level:
+                    self.structures[i]._level = np.nanmax(np.where(self.struc_map==self.structures[i].id,self.level_map,np.nan))
+                pbar.update(1)
+                #'''
 
         print('Validating assignments...')
-        self.check_segmentation_success()
+        self._check_segmentation_success()
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
                                   export_parent=True,odir='./',fname='run',verbose=False):
@@ -550,6 +543,7 @@ class Structures(object):
             self._clear_hierarchy()
 
         ### calculate parents
+        # TO DO: remove
         if len(self._imgshape) > 2:
             dim_invert = 2
         if len(self._imgshape) == 2:
@@ -561,20 +555,18 @@ class Structures(object):
         for s in ascend_death:
             struc = self.structures[s]
             struc.compute_segment(img=img_jnp)
+            # TO DO: move back to normal indices instead of raveled
             struc_multi_inds = np.unravel_index(struc.indices, self._imgshape)
             mask_count[struc_multi_inds] += 1
             self.structures[s]._level = np.nanmax(mask_count[struc_multi_inds])
 
-            parent_cand = np.nanmax(mask_s[struc_multi_inds]) ##### I THINK THIS IS BAD
+            parent_cand = np.nanmax(mask_s[struc_multi_inds]) ##### TO DO: check if this works in edge cases
             # because it's taking max id, but if multiple structures had pixels there, won't work
             if np.isfinite(parent_cand):
                 self.structures[s]._parent = int(parent_cand)
-            #import pdb
-            #pdb.set_trace()
-            #inds_unique = struc.indices[np.isnan(mask_s[struc_multi_inds])]
-            #multi_inds_unique = np.unravel_index(inds_unique, self._imgshape)
+
             mask_s[struc_multi_inds] = int(s)
-            struc.clear_indices()
+            struc._clear_indices()
             if verbose:
                 pbar.update(1)
 
@@ -591,7 +583,7 @@ class Structures(object):
         self.struc_map = mask_s
         self.level_map = np.where(mask_count>0,mask_count,np.nan)
 
-        self.check_segmentation_success()
+        self._check_segmentation_success()
 
         if export_parent:
             import pandas as pd
@@ -602,7 +594,7 @@ class Structures(object):
 
     ########################################################################
 
-    def check_segmentation_success(self):
+    def _check_segmentation_success(self):
 
         '''
         Check if the segmentation was successful.
@@ -618,86 +610,6 @@ class Structures(object):
             print('Segmentation successful!')
         if unique_struc != n_unique:
             print('Uh oh!')
-
-    def compute_segment(self, img_jnp=None):
-        '''
-        Compute the segmentation of each structure.
-
-        Parameters:
-        -----------
-        img_jnp : jnp.ndarray
-            Image data.
-
-        '''
-        pbar = tqdm(total=self.n_struc, unit='structures')
-        for i in range(self.n_struc):
-            struc = self.structures[i]
-            if struc.saved_indices_exist():
-                struc.load_indices()
-            if not struc.saved_indices_exist():
-                struc.compute_segment(img=img_jnp)
-                struc.save_indices()
-            struc.clear_indices()
-            pbar.update(1)
-
-    def compute_hierarchy(self,  s_include = None, return_masks=False, clobber=True):
-
-        '''
-        Compute the structure hierarchy.
-
-        Parameters:
-        -----------
-        s_include : list
-            List of structure IDs to include.
-        return_masks : bool
-            Return masks.
-        clobber : bool
-            Clear the hierarchy.
-
-        '''
-        mask_count = np.full((self._imgshape), 0.)
-        mask_s = np.full((self._imgshape),np.nan)
-
-        if clobber:
-            self._clear_hierarchy()
-
-        ### calculate parents
-        ascend_death = self.sort_keys(s_include=s_include)
-        print(ascend_death)
-        pbar = tqdm(total=len(ascend_death), unit='structures')
-        for s in ascend_death:
-            struc = self.structures[s]
-            if struc.saved_indices_exist():
-                struc.load_indices()
-                struc_multi_inds = np.unravel_index(struc.indices,self._imgshape)
-                mask_count[struc_multi_inds] += 1
-                self.structures[s]._level = np.nanmax(mask_count[struc_multi_inds])
-                parent_cand = np.nanmax(mask_s[struc_multi_inds])
-                if np.isfinite(parent_cand):
-                    self.structures[s]._parent = int(parent_cand)
-                mask_s[struc_multi_inds] = int(s)
-                struc.clear_indices()
-            pbar.update(1)
-
-        ### label children
-        has_parent = np.where(self.parent != None)[0]
-        for s in has_parent:
-            s_parent = self.structures[s].parent
-            self.structures[s_parent]._children.extend([int(s)])
-        self._trunk = [structure for structure in self.all_structures if structure.parent == None]
-        self._leaves = [structure for structure in self.all_structures if structure.is_leaf]
-
-        for s in ascend_death:
-            self._set_descendants(s)
-
-        self.struc_map = mask_s
-        self.level_map = mask_count
-
-        self.check_segmentation_success()
-
-        if return_masks:
-            return mask_s# mask_count,
-
 
     ########################################################################
     def export_struc_map(self, fname='run', odir = './'):
