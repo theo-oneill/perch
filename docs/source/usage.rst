@@ -10,6 +10,6 @@ Installation
 Running perch
 ----------------
 
->>> from perch.perch_ph import PH
+>>> from perch.ph import PH
 >>> hom = PH.compute_hom(img,verbose=True,wcs=wcs_img)
 
