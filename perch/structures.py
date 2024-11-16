@@ -270,7 +270,10 @@ class Structures(object):
         if self.wcs is None:
             print('Error: must input wcs!')
             return
-        return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1],self.deathpix[:,2])
+        if self.ndim == 2:
+            return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1])
+        if self.ndim == 3:
+            return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1],self.deathpix[:,2])
 
     @property
     def geom_cent_coord(self):
@@ -457,59 +460,75 @@ class Structures(object):
 
     ########################################################################
 
-    def load_hierarchy(self,  parent_df, load_level=True, assign_npix=True):
+    def load_hierarchy(self, verbose=False,odir='./',fname='run'):
 
         '''
         Load the structure hierarchy.
 
         Parameters:
         -----------
-        parent_df : pd.DataFrame
-            DataFrame of parent IDs.
-        load_level : bool
-            Load the level of each structure (slow!).
+        verbose : bool
+            Verbose output.
+        odir : str
+            Output directory.
+        fname : str
+            File name.
         '''
 
-        print('Assigning parents...')
+        print('Loading hierarchy...') if verbose else None
+        from astropy.io import fits
+        from astropy.table import Table
+        import pandas as pd
+
+        hdul = fits.open(f'{odir}{fname}_perch_seg.fits')
+        self.struc_map = hdul[0].data
+        self.level_map = hdul[1].data
+
+        parent_table = Table(hdul[2].data)
+        parent_df = parent_table.to_pandas()
+
+        print('Assigning properties...') if verbose else None
         for i in range(self.n_struc):
             parent_val =  parent_df['Parent_ID'].values[parent_df['ID'].values == self.id[i]][0]
             if parent_val >= 0:
                 self.structures[i]._parent = int(parent_val)
+            self.structures[i]._npix = parent_df['Npix'].values[parent_df['ID'].values == self.id[i]][0]
+            self.structures[i]._level = parent_df['Level'].values[parent_df['ID'].values == self.id[i]][0]
 
         ### label children
-        print('Assigning children...')
+        print('Assigning children...') if verbose else None
         has_parent = np.where(self.parent != None)[0]
         for s in has_parent:
             s_parent = self.structures[s].parent
             self.structures[s_parent]._children.extend([int(s)])
 
-        print('Assigning trunk and leaves...')
+        print('Assigning trunk and leaves...')  if verbose else None
         self._trunk = [structure for structure in self.all_structures if structure.parent == None]
         self._leaves = [structure for structure in self.all_structures if structure.is_leaf]
 
-        print('Assigning descendants...')
+        print('Assigning descendants...') if verbose else None
         for i in range(self.n_struc):
             self._set_descendants(i)
 
         #'''
         # TO DO: add function to load level and npix instead of reassigning (requires storing in parent_df)
-        if assign_npix:
-            print('Assigning npix...')
-            pbar = tqdm(total=self.n_struc, unit='structures')
+        '''if assign_npix:
+            print('Assigning npix...') if verbose else None
+            pbar = tqdm(total=self.n_struc, unit='structures') if verbose else None
             for i in range(self.n_struc):
                 i_desc = self.structures[i].descendants
                 struc_mask = np.isin(self.struc_map, i_desc)
                 self.structures[i]._npix = np.nansum(struc_mask)
                 if load_level:
                     self.structures[i]._level = np.nanmax(np.where(self.struc_map==self.structures[i].id,self.level_map,np.nan))
-                pbar.update(1)
+                pbar.update(1) if verbose else None
                 #'''
 
-        print('Validating assignments...')
-        self._check_segmentation_success()
+        print('Validating assignments...') if verbose else None
+        self._check_segmentation_success(verbose=verbose)
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
-                                  export_parent=True,odir='./',fname='run',verbose=False):
+                                  export=True,odir='./',fname='run',verbose=False):
 
         '''
         Compute the segment hierarchy.
@@ -549,6 +568,8 @@ class Structures(object):
         if len(self._imgshape) == 2:
             dim_invert = 1
         flag_invert = False#self.htype[0]!=dim_invert
+        if self.htype[0] == 2:
+            flag_invert = True
         ascend_death = self.sort_keys(s_include=s_include,invert=flag_invert)
         if verbose:
             pbar = tqdm(total=len(ascend_death), unit='structures')
@@ -560,12 +581,28 @@ class Structures(object):
             mask_count[struc_multi_inds] += 1
             self.structures[s]._level = np.nanmax(mask_count[struc_multi_inds])
 
+            # IDs are in order of lowest birth to highest birth
+            # so nanmax will find the structure in the index footprint with the highest ID i.e. highest birth
+            # so it's the most recent structure in the footprint so i think this definition of parent is good
+            # unless want parent to be structure with most recent death?
+            # need to think more about this
+
+            # overwriting seems to occur for structures that have death less than death of the large structure
+            # i.e., the overwitten structures appeared earlier in the ascending death hierarchy
+            # contradiciotn between IDs in order of ascending birth, and segmenting in order of ascending death?
             parent_cand = np.nanmax(mask_s[struc_multi_inds]) ##### TO DO: check if this works in edge cases
             # because it's taking max id, but if multiple structures had pixels there, won't work
             if np.isfinite(parent_cand):
                 self.structures[s]._parent = int(parent_cand)
 
-            mask_s[struc_multi_inds] = int(s)
+            #mask_s[struc_multi_inds] = int(s)
+
+            unassigned_pixels = np.isnan(mask_s[struc_multi_inds])
+            if np.sum(unassigned_pixels) > 0:
+                mask_s[struc_multi_inds] = np.where(unassigned_pixels, int(s), mask_s[struc_multi_inds])
+            if np.sum(unassigned_pixels) == 0:
+                mask_s[struc_multi_inds] = int(s)#'''
+
             struc._clear_indices()
             if verbose:
                 pbar.update(1)
@@ -583,35 +620,60 @@ class Structures(object):
         self.struc_map = mask_s
         self.level_map = np.where(mask_count>0,mask_count,np.nan)
 
-        self._check_segmentation_success()
+        self._check_segmentation_success(verbose=verbose)
 
-        if export_parent:
-            import pandas as pd
-            parent_df = pd.DataFrame({'ID_PH': self.id_ph,
-                                      'ID': self.id,
-                                      'Parent_ID': self.parent})
-            parent_df.to_csv(f'{odir}/{fname}_parents.csv', index=False)
+        if export:
+            self.export_segmentation(fname=fname, odir=odir)
 
     ########################################################################
 
-    def _check_segmentation_success(self):
+    def _check_segmentation_success(self,verbose=False):
 
         '''
         Check if the segmentation was successful.
 
         '''
         unique_struc = self.n_struc
-        print(f'{unique_struc} total structures')
+        print(f'{unique_struc} total structures') if verbose else None
         unique_seg = np.unique(self.struc_map)
         unique_seg = unique_seg[~np.isnan(unique_seg)]
         n_unique = len(unique_seg)
-        print(f'{n_unique} structures in segmented map')
+        print(f'{n_unique} structures in segmented map') if verbose else None
         if unique_struc == n_unique:
-            print('Segmentation successful!')
+            print('Segmentation successful!') if verbose else None
         if unique_struc != n_unique:
-            print('Uh oh!')
+            print('Uh oh!') if verbose else None
 
     ########################################################################
+
+    def export_segmentation(self, fname='run', odir = './'):
+        '''
+        Export all information needed to recreate the segmentation (struc_map, level_map, structure properties).
+
+        Parameters:
+        -----------
+        fname : str
+            File name.
+        odir : str
+            Output directory.
+
+        '''
+        from astropy.io import fits
+        from astropy.table import Table
+        import pandas as pd
+
+        if self.wcs is not None:
+            head = self.wcs.to_header()
+        else:
+            head = None
+        hdul = fits.HDUList()
+        hdul.append(fits.PrimaryHDU(data=np.array(self.struc_map, dtype='float32'), header=head))
+        hdul.append(fits.PrimaryHDU(data=np.array(self.level_map, dtype='float32'), header=head))
+
+        parent_df = pd.DataFrame({'ID_PH': self.id_ph,  'ID': self.id,  'Npix': self.npix, 'Parent_ID': np.array(self.parent,dtype='float32'),'Level': np.array(self.level,dtype='float32')})
+        hdul.append(fits.BinTableHDU(Table.from_pandas(parent_df)))
+        hdul.writeto(f'{odir}{fname}_perch_seg.fits', overwrite=True)
+
     def export_struc_map(self, fname='run', odir = './'):
         '''
         Export the structure map.
@@ -661,37 +723,11 @@ class Structures(object):
         hdul.append(fits.PrimaryHDU(data=np.array(self.level_map, dtype='float32'), header=head))
         hdul.writeto(f'{odir}{fname}_level_map.fits', overwrite=True)
 
-    def load_struc_map(self, fname='run', odir = './'):
-        '''
-        Load the structure map.
-
-        Parameters:
-        -----------
-        fname : str
-            File name.
-        odir : str
-            Output directory.
-        '''
-        from astropy.io import fits
-        hdul = fits.open(f'{odir}{fname}_struc_map.fits')
-        self.struc_map = hdul[0].data
-
     def clear_struc_map(self):
         '''
         Clear the structure map.
         '''
         self.struc_map = None
-
-    def export_collection(self, fname='run', odir='./', include_map=False):
-        '''
-        Export the structure collection.
-        '''
-        import pickle
-        pickle.dump(self, open(f'{odir}{fname}_structures.p', 'wb'))
-
-
-
-
 
 
 

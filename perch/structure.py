@@ -143,6 +143,8 @@ class Structure(object):
         '''
         Sum of the values of the pixels in the structure.
         '''
+        if self._sum_values is None:
+            self._calculate_sum_values()
         return self._sum_values
 
     @property
@@ -150,6 +152,8 @@ class Structure(object):
         '''
         Volume of the structure.
         '''
+        if self._volume is None:
+            self._calculate_volume()
         return self._volume
 
     @property
@@ -157,6 +161,8 @@ class Structure(object):
         '''
         Surface area of the structure.
         '''
+        if self._surface_area is None:
+            self._calculate_surface_area()
         return self._surface_area
 
     @property
@@ -164,6 +170,8 @@ class Structure(object):
         '''
         Sphericity of the structure.
         '''
+        if self._sphericity is None:
+            self._calculate_sphericity()
         return self._sphericity
 
     @property
@@ -185,6 +193,8 @@ class Structure(object):
         '''
         Geometric center of the structure.
         '''
+        if self._geom_cent is None:
+            self._calculate_geom_cent()
         return self._geom_cent
 
     @property
@@ -192,13 +202,17 @@ class Structure(object):
         '''
         Weighted center of the structure.
         '''
+        if self._weight_cent is None:
+            self._calculate_weight_cent()
         return self._weight_cent
 
     @property
-    def extreme_pixt(self):
+    def extreme_pix(self):
         '''
         Pixel with the extreme value in the structure.
         '''
+        if self._extreme_pix is None:
+            self._calculate_extreme_pix()
         return self._extreme_pix
 
     @property
@@ -342,7 +356,7 @@ class Structure(object):
             return
         return img[self.indices]
 
-    def calculate_sum_values(self, img =None):
+    def _calculate_sum_values(self, img =None):
         '''
         Calculate the sum of the image values of the structure
 
@@ -354,13 +368,13 @@ class Structure(object):
         '''
         self._sum_values = np.nansum(self.get_values(img=img))
 
-    def calculate_geom_cent(self):
+    def _calculate_geom_cent(self):
         '''
         Calculate the geometric center of the structure.
         '''
         self._geom_cent = np.mean(self.indices,axis=1)
 
-    def calculate_weight_cent(self, img=None):
+    def _calculate_weight_cent(self, img=None):
         '''
         Calculate the weighted center of the structure.
 
@@ -380,7 +394,7 @@ class Structure(object):
             wcent = ndimage.center_of_mass(np.where(self.get_mask(), -img, 0))
         self._weight_cent = wcent
 
-    def calculate_extreme_pix(self, img=None):
+    def _calculate_extreme_pix(self, img=None):
         '''
         Calculate the pixel with the extreme value in the structure
 
@@ -399,7 +413,7 @@ class Structure(object):
             extr = self.indices[np.argmin(self.get_values(img=img))]
         self._extreme_pix = extr
 
-    def calculate_surface_area(self, save_points=True,sdir='./'):
+    def _calculate_surface_area(self, save_points=True,sdir='./'):
         '''
         Calculate the surface area of the structure using marching cubes.
 
@@ -420,13 +434,13 @@ class Structure(object):
             fname = f'struc_{self.id_ph}_verts.txt'
             np.savetxt(f'{sdir}{fname}', march[0])
 
-    def calculate_volume(self):
+    def _calculate_volume(self):
         '''
         Calculate the volume of the structure
         '''
         self._volume = self.npix
 
-    def calculate_sphericity(self,sdir='./',save_points=False):
+    def _calculate_sphericity(self,sdir='./',save_points=False):
         '''
         Calculate the sphericity of the structure.
 
@@ -439,9 +453,9 @@ class Structure(object):
 
         '''
         if self.volume is None:
-            self.calculate_volume()
+            self._calculate_volume()
         if self.surface_area is None:
-            self.calculate_surface_area(save_points=save_points,sdir=sdir)
+            self._calculate_surface_area(save_points=save_points,sdir=sdir)
         self._sphericity = np.pi**(1/3) * (6* self.volume)**(2/3) / self.surface_area
 
 

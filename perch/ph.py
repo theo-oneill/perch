@@ -46,15 +46,19 @@ class PH(object):
         img_prep = copy.deepcopy(self.data)
         img_prep = -img_prep
         if self.n_dim == 2:
-            # TO DO: fix this to go to first finite pixel
-            img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
-            '''if np.isfinite(img_prep[0,0]):
-                img_prep[0:2, 0:2] = np.nanmin(img_prep) * 2
+            # TO DO: fix this to overwrite a nan pixel on border
+            if np.isfinite(img_prep[0,0]):
+                img_prep[0:1, 0:1] = np.nanmin(img_prep) * 2
             else:
                 fin_use = np.where(np.isfinite(img_prep))
-                img_prep[fin_use[0][0]:fin_use[0][0]+1,fin_use[1][0]:fin_use[1][0]+1] = np.nanmin(img_prep) * 2'''
+                img_prep[fin_use[0][0],fin_use[1][0]] = np.nanmin(img_prep) * 2#'''
         if self.n_dim == 3:
-                img_prep[0:2, 0:2,0:2] = np.nanmin(img_prep) * 2#'''
+            if np.isfinite(img_prep[0,0,0]):
+                img_prep[0:1, 0:1,0:1] = np.nanmin(img_prep) * 2
+            else:
+                fin_use = np.where(np.isfinite(img_prep))
+                img_prep[fin_use[0][0],fin_use[1][0], fin_use[2][0]] = np.nanmin(img_prep) * 2
+
         return img_prep
 
     def compute_hom(data=None, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
