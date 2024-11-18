@@ -270,9 +270,9 @@ class Structures(object):
         if self.wcs is None:
             print('Error: must input wcs!')
             return
-        if self.ndim == 2:
+        if self._ndim == 2:
             return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1])
-        if self.ndim == 3:
+        if self._ndim == 3:
             return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1],self.deathpix[:,2])
 
     @property
@@ -460,7 +460,7 @@ class Structures(object):
 
     ########################################################################
 
-    def load_hierarchy(self, verbose=False,odir='./',fname='run'):
+    def load_from(verbose=False,odir='./',fname='run'):
 
         '''
         Load the structure hierarchy.
@@ -475,17 +475,22 @@ class Structures(object):
             File name.
         '''
 
-        print('Loading hierarchy...') if verbose else None
+        print('Loading...') if verbose else None
+
         from astropy.io import fits
         from astropy.table import Table
         import pandas as pd
+        from astropy.wcs import WCS
+
 
         hdul = fits.open(f'{odir}{fname}_perch_seg.fits')
-        self.struc_map = hdul[0].data
-        self.level_map = hdul[1].data
-
         parent_table = Table(hdul[2].data)
         parent_df = parent_table.to_pandas()
+
+        # mirror cripser output
+        gen_array = parent_df[['Htype', 'Birth', 'Death', 'Birthpix_0', 'Birthpix_1', 'Birthpix_2', 'Deathpix_0', 'Deathpix_1', 'Deathpix_2', 'ID_PH']].values
+        # create structures object
+        self = Structures(structures=gen_array, img_shape = np.shape(hdul[0].data), wcs=WCS(hdul[0].header), struc_map=hdul[0].data, level_map=hdul[1].data)
 
         print('Assigning properties...') if verbose else None
         for i in range(self.n_struc):
@@ -526,6 +531,8 @@ class Structures(object):
 
         print('Validating assignments...') if verbose else None
         self._check_segmentation_success(verbose=verbose)
+
+        return self
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
                                   export=True,odir='./',fname='run',verbose=False):
@@ -670,7 +677,11 @@ class Structures(object):
         hdul.append(fits.PrimaryHDU(data=np.array(self.struc_map, dtype='float32'), header=head))
         hdul.append(fits.PrimaryHDU(data=np.array(self.level_map, dtype='float32'), header=head))
 
-        parent_df = pd.DataFrame({'ID_PH': self.id_ph,  'ID': self.id,  'Npix': self.npix, 'Parent_ID': np.array(self.parent,dtype='float32'),'Level': np.array(self.level,dtype='float32')})
+        parent_df = pd.DataFrame({'ID_PH': self.id_ph,  'ID': self.id,
+                                  'Htype': self.htype, 'Birth': self.birth, 'Death': self.death,
+                                  'Birthpix_0': self.birthpix[:,0], 'Birthpix_1': self.birthpix[:,1], 'Birthpix_2': self.birthpix[:,2],
+                                  'Deathpix_0': self.deathpix[:,0], 'Deathpix_1': self.deathpix[:,1], 'Deathpix_2': self.deathpix[:,2],
+                                  'Npix': self.npix, 'Parent_ID': np.array(self.parent,dtype='float32'),'Level': np.array(self.level,dtype='float32')})
         hdul.append(fits.BinTableHDU(Table.from_pandas(parent_df)))
         hdul.writeto(f'{odir}{fname}_perch_seg.fits', overwrite=True)
 
