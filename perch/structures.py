@@ -37,6 +37,12 @@ class Structures(object):
                 strucdict[i] = struc
             self.structures = strucdict
 
+        if type(structures) == list and type(structures[0]) == Structure:
+            strucdict = {}
+            for i in range(len(structures)):
+                strucdict[i] = structures[i]
+            self.structures = strucdict
+
         if type(structures) == dict:
             self.structures = structures
 
@@ -460,7 +466,7 @@ class Structures(object):
 
     ########################################################################
 
-    def load_from(verbose=False,odir='./',fname='run'):
+    def load_from(verbose=False,odir='./',fname='run',check_success=True):
 
         '''
         Load the structure hierarchy.
@@ -529,8 +535,9 @@ class Structures(object):
                 pbar.update(1) if verbose else None
                 #'''
 
-        print('Validating assignments...') if verbose else None
-        self._check_segmentation_success(verbose=verbose)
+        if check_success:
+            print('Validating assignments...') if verbose else None
+            self._check_segmentation_success(verbose=verbose)
 
         return self
 
@@ -652,6 +659,74 @@ class Structures(object):
             print('Uh oh!') if verbose else None
 
     ########################################################################
+    def remove_strucs(self, remove_ids, verbose=False):
+        for s in remove_ids:
+            self.remove_struc(s, verbose=verbose)
+
+
+    def remove_struc(self, s_remove, verbose=False):
+        '''
+        Remove a structure.
+
+        NOTE: in development.  need to add recursive removal of structure from all parent descendant lists in hierarchy
+
+        Parameters:
+        -----------
+        s_remove : int
+            Structure ID to remove.
+        verbose : bool
+            Verbose output.
+
+        '''
+        if verbose:
+            print(f'Removing structure {s_remove}...')
+
+        if not self.structures[s_remove].is_leaf:
+            if verbose:
+                print('Structure is a branch.')
+
+            ids_children = self.structures[s_remove].children
+            #child_mask = np.isin(self.id, ids_children)
+
+            ids_desc = self.structures[s_remove].descendants
+
+            #desc_mask = np.isin(self.id, ids_desc)
+            # reduce level of all descendants by one
+            for j in range(len(ids_desc)):
+                self.structures[ids_desc[j]]._level = self.structures[ids_desc[j]]._level - 1
+            desc_map_mask = np.isin(self.struc_map, ids_desc)
+            self.level_map[desc_map_mask] -= 1
+
+            # remove structure as children's parent
+            for j in range(len(ids_children)):
+                self.structures[ids_children[j]]._parent = None
+
+        # remove structure from list of parent's children and descendants
+        if self.structures[s_remove].parent is not None:
+            if verbose:
+                print('Structure has a parent.')
+            parent_id = self.structures[s_remove].parent
+            self.structures[parent_id]._children.remove(s_remove)
+            self.structures[parent_id]._descendants.remove(s_remove)
+            #self.structures[s_remove]._parent = None
+
+        # replace pixels with structure's ID in segmented map with parent ID or nan, depending on parentage
+        struc_mask = np.isin(self.struc_map, s_remove)
+        self.struc_map[struc_mask] = np.nan if self.structures[s_remove].parent is None else self.structures[s_remove].parent
+        self.level_map[struc_mask] = np.nan if self.structures[s_remove].parent is None else self.structures[self.structures[s_remove].parent].level
+
+        # finally, remove structure from dictionary of structures
+        self.structures.pop(s_remove)
+
+    ########################################################################
+
+    def generators(self):
+        import pandas as pd
+        parent_df = pd.DataFrame({ 'Htype': self.htype, 'Birth': self.birth, 'Death': self.death,
+                                  'Birthpix_0': self.birthpix[:, 0], 'Birthpix_1': self.birthpix[:, 1],  'Birthpix_2': self.birthpix[:, 2],
+                                  'Deathpix_0': self.deathpix[:, 0], 'Deathpix_1': self.deathpix[:, 1],'Deathpix_2': self.deathpix[:, 2],
+                                   'ID_PH': self.id_ph})
+        return parent_df.values
 
     def export_segmentation(self, fname='run', odir = './'):
         '''
