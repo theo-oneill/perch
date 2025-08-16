@@ -39,30 +39,49 @@ class PH(object):
     ####################################################
     ## compute PH (or load from stored)
 
-    def _prep_img(self):
+    def _prep_img(self,buff_pix=False,buff_pix_loc=None,buff_val=None,fill_complete=False,fill_mask=None):
         '''
         Prepare image for PH computation.
         '''
         img_prep = copy.deepcopy(self.data)
         img_prep = -img_prep
-        if self.n_dim == 2:
-            # TO DO: fix this to overwrite a nan pixel on border
-            if np.isfinite(img_prep[0,0]):
-                img_prep[0:1, 0:1] = np.nanmin(img_prep) * 2
-            else:
-                fin_use = np.where(np.isfinite(img_prep))
-                img_prep[fin_use[0][0],fin_use[1][0]] = np.nanmin(img_prep) * 2#'''
-        if self.n_dim == 3:
-            if np.isfinite(img_prep[0,0,0]):
-                img_prep[0:1, 0:1,0:1] = np.nanmin(img_prep) * 2
-            else:
-                fin_use = np.where(np.isfinite(img_prep))
-                img_prep[fin_use[0][0],fin_use[1][0], fin_use[2][0]] = np.nanmin(img_prep) * 2
 
-        return img_prep
+        if fill_complete:
+            if buff_val is None:
+                buff_val = np.nanmin(img_prep) * 2
+            if fill_mask is None:
+                fill_mask = np.isnan(img_prep)
+            img_prep = np.where(fill_mask, buff_val, img_prep)
+
+        if buff_pix:
+
+            if buff_val is None:
+                buff_val = np.nanmin(img_prep) * 2
+
+            if self.n_dim == 2:
+                if buff_pix_loc is not None:
+                    img_prep[buff_pix_loc[0],buff_pix_loc[1]] = buff_val
+                else:
+                    if np.isfinite(img_prep[0,0]):
+                        img_prep[0:1, 0:1] = buff_val
+                    else:
+                        fin_use = np.where(np.isfinite(img_prep))
+                        img_prep[fin_use[0][0],fin_use[1][0]] =buff_val
+
+            if self.n_dim == 3:
+                if buff_pix_loc is not None:
+                    img_prep[buff_pix_loc[0],buff_pix_loc[1],buff_pix_loc[2]] = buff_val
+                else:
+                    if np.isfinite(img_prep[0,0,0]):
+                        img_prep[0:1, 0:1,0:1] = buff_val
+                    else:
+                        fin_use = np.where(np.isfinite(img_prep))
+                        img_prep[fin_use[0][0],fin_use[1][0], fin_use[2][0]] = buff_val
+
+        return img_prep, buff_val
 
     def compute_hom(data=None, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
-                    engine='C', noise=None):
+                    engine='C', noise=None,prep_img_kwargs={}):
 
         '''
         Compute persistent homology.
@@ -99,7 +118,7 @@ class PH(object):
         self.wcs = wcs
         self.img_shape = data.shape
         if flip_data:
-            self.data_prep = self._prep_img()
+            self.data_prep, buff_val = self._prep_img(**prep_img_kwargs)
         if not flip_data:
             self.data_prep = self.data
         if max_Hi is None:
@@ -132,26 +151,33 @@ class PH(object):
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
             ph_all[:,2] = -ph_all[:,2]
-            base_struc = ph_all[:,1] == -2*np.nanmin(-self.data)
-            ph_all = ph_all[~base_struc]
-            base_struc = ph_all[:, 2] == -2 * np.nanmin(-self.data)
-            ph_all = ph_all[~base_struc]#'''
+            #if buff_val is not None:
+            #print('ignoring')
+            """base_struc = ph_all[:,1] == -buff_val
+                ph_all = ph_all[~base_struc]
+                base_struc = ph_all[:, 2] == -buff_val
+                ph_all = ph_all[~base_struc]#"""
             #print('flipping observed deaths')
 
         # remove generators that originate from nans
-        base_struc = ph_all[:,2] < np.nanmin(self.data)
+        """base_struc = ph_all[:,2] < np.nanmin(self.data)
         ph_all = ph_all[~base_struc]
         base_struc = np.isnan(ph_all[:, 1])
-        ph_all = ph_all[~base_struc]#'''
+        ph_all = ph_all[~base_struc]#"""
 
-        # add homology id
+        if 'fill_mask' in {}.keys():
+            # remove generators that originate from inside of fill mask
+            base_struc = prep_img_kwargs['fill_mask'][ph_all[:, 3].astype(int), ph_all[:, 4].astype(int), ph_all[:, 5].astype(int)]
+            ph_all = ph_all[~base_struc]
+
+        # add id
         h_id = np.arange(len(ph_all))
         h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
 
         # store generators
         self.generators = h_all
         self.strucs = Structures(structures=h_all, img_shape=self.img_shape, wcs=self.wcs,inds_dir=None)
-        self.data_prep = None # save memory
+        #self.data_prep = None # save memory
 
         return self
 

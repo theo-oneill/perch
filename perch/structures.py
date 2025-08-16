@@ -292,6 +292,20 @@ class Structures(object):
         return self.wcs.pixel_to_world(self.geom_cent)
 
     @property
+    def centroid_coord(self):
+        '''
+        Return the WCS centroid coordinates of each structure.
+
+        TO DO: add centroid calculation
+        '''
+        if self.wcs is None:
+            print('Error: must input wcs!')
+            return
+        if self.centroid_0 is None:
+            print('Error: must calculate centroid!')
+        return self.wcs.pixel_to_world(self.centroid_0,self.centroid_1,self.centroid_2)
+
+    @property
     def equiv_radius_coord(self):
         '''
         Return the WCS equivalent radius of each structure.
@@ -540,6 +554,26 @@ class Structures(object):
             self._check_segmentation_success(verbose=verbose)
 
         return self
+
+    def add_attributes(self, prop_df):
+        '''
+        Add attributes to the structures collection.
+
+        Parameters:
+        -----------
+        prop_df : pandas.DataFrame
+            DataFrame of properties.
+
+        '''
+        for col in prop_df.columns[prop_df.columns != 'ID']:
+            for i in range(self.n_struc):
+                skey = list(self.structure_keys)[i]
+                col_i_val = prop_df[col].values[prop_df['ID'].values == self.id[i]][0]
+                #self.structures[i]._npix = prop_df[col].values[prop_df['ID'].values == self.id[i]][0]
+                setattr(self.structures[skey], col, col_i_val)
+            setattr(self, col,  np.array([getattr(self.structures[i],col) for i in self.structure_keys]))
+
+
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
                                   export=True,odir='./',fname='run',verbose=False):
