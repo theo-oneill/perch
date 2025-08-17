@@ -177,7 +177,7 @@ class PH(object):
         # store generators
         self.generators = h_all
         self.strucs = Structures(structures=h_all, img_shape=self.img_shape, wcs=self.wcs,inds_dir=None)
-        #self.data_prep = None # save memory
+        self.data_prep = None # save memory
 
         return self
 

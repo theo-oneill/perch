@@ -59,6 +59,8 @@ class Structures(object):
 
         self.sdir = inds_dir
 
+        self.df = None
+
     ###########################################################################
     ###########################################################################
 
@@ -189,6 +191,91 @@ class Structures(object):
         return np.array([self.structures[i].geom_cent for i in self.structure_keys])
 
     @property
+    def centroid(self):
+        '''
+        Return the weighted centroid of each structure.
+        '''
+        return np.array([self.structures[i].centroid for i in self.structure_keys])
+
+    #@property
+    def centroid_0(self):
+        return self.centroid[:, 0]
+
+    #@property
+    def centroid_1(self):
+        return self.centroid[:, 1]
+
+    #@property
+    def centroid_2(self):
+        if self._ndim == 3:
+            return self.centroid[:, 2]
+        else:
+            return None
+
+    @property
+    def bbox(self):
+        '''
+        Return the weighted centroid of each structure.
+        '''
+        return np.array([self.structures[i].bbox for i in self.structure_keys])
+
+    #@property
+    def bbox_min_0(self):
+        return self.bbox[:, 0, 0]
+
+    #@property
+    def bbox_min_1(self):
+        return self.bbox[:, 0, 1]
+
+    #@property
+    def bbox_min_2(self):
+        return self.bbox[:, 0, 2] if self._ndim == 3 else None
+
+    #@property
+    def bbox_max_0(self):
+        return self.bbox[:, 1, 0]
+
+    #@property
+    def bbox_max_1(self):
+        return self.bbox[:, 1, 1]
+
+    #@property
+    def bbox_max_2(self):
+        return self.bbox[:, 1, 2] if self._ndim == 3 else None
+
+    @property
+    def sum_val(self):
+        '''
+        Return the geometric center of each structure.
+        '''
+        return np.array([self.structures[i].sum_val for i in self.structure_keys])
+
+    #@sum_values.setter
+    #def sum_values(self, val_array):
+    #    self.sum_values = val_array
+
+    @property
+    def min_val(self):
+        '''
+        Return the minimum values of each structure.
+        '''
+        return np.array([self.structures[i].min_val for i in self.structure_keys])
+
+    @property
+    def max_val(self):
+        '''
+        Return the maximum values of each structure.
+        '''
+        return np.array([self.structures[i].max_val for i in self.structure_keys])
+
+    @property
+    def med_val(self):
+        '''
+        Return the median values of each structure.
+        '''
+        return np.array([self.structures[i].med_val for i in self.structure_keys])
+
+    @property
     def parent(self):
         '''
         Return the parent of each structure.
@@ -301,9 +388,22 @@ class Structures(object):
         if self.wcs is None:
             print('Error: must input wcs!')
             return
-        if self.centroid_0 is None:
+        if self.centroid is None:
             print('Error: must calculate centroid!')
-        return self.wcs.pixel_to_world(self.centroid_0,self.centroid_1,self.centroid_2)
+        return self.wcs.pixel_to_world(self.centroid[:,0],self.centroid[:,1],self.centroid[:,2])
+
+    @property
+    def bbox_coord(self):
+        '''
+        Return the WCS bounding box coordinates of each structure.
+        '''
+        if self.wcs is None:
+            print('Error: must input wcs!')
+            return
+        bbox_min = self.wcs.pixel_to_world(self.bbox[:,0,0],self.bbox[:,0,1],self.bbox[:,0,2])
+        bbox_max = self.wcs.pixel_to_world(self.bbox[:,1,0],self.bbox[:,1,1],self.bbox[:,1,2])
+
+        return [bbox_min, bbox_max]
 
     @property
     def equiv_radius_coord(self):
@@ -502,15 +602,23 @@ class Structures(object):
         import pandas as pd
         from astropy.wcs import WCS
 
-
         hdul = fits.open(f'{odir}{fname}_perch_seg.fits')
         parent_table = Table(hdul[2].data)
         parent_df = parent_table.to_pandas()
 
+        output_cols = ['Htype', 'Birth', 'Death', 'Birthpix_0', 'Birthpix_1', 'Birthpix_2', 'Deathpix_0', 'Deathpix_1', 'Deathpix_2', 'ID_PH']
+        ignore_cols = ['Parent_ID', 'Npix', 'Level']
+        supp_cols = parent_df.columns[~np.isin(parent_df.columns,np.hstack([output_cols,ignore_cols])) ]
+
+        ### note: this ssetup assumes taht you are feding in only the same set of structures as when saved.  otherwise ID nubmers etc will get messed up.
+        # so don't subsample this dataframe...since stored in fits file I think safe.  but probably revisit this later
+
         # mirror cripser output
-        gen_array = parent_df[['Htype', 'Birth', 'Death', 'Birthpix_0', 'Birthpix_1', 'Birthpix_2', 'Deathpix_0', 'Deathpix_1', 'Deathpix_2', 'ID_PH']].values
+        gen_array = parent_df[output_cols].values
         # create structures object
         self = Structures(structures=gen_array, img_shape = np.shape(hdul[0].data), wcs=WCS(hdul[0].header), struc_map=hdul[0].data, level_map=hdul[1].data)
+
+        self.df = parent_df
 
         print('Assigning properties...') if verbose else None
         for i in range(self.n_struc):
@@ -535,19 +643,11 @@ class Structures(object):
         for i in range(self.n_struc):
             self._set_descendants(i)
 
-        #'''
-        # TO DO: add function to load level and npix instead of reassigning (requires storing in parent_df)
-        '''if assign_npix:
-            print('Assigning npix...') if verbose else None
-            pbar = tqdm(total=self.n_struc, unit='structures') if verbose else None
-            for i in range(self.n_struc):
-                i_desc = self.structures[i].descendants
-                struc_mask = np.isin(self.struc_map, i_desc)
-                self.structures[i]._npix = np.nansum(struc_mask)
-                if load_level:
-                    self.structures[i]._level = np.nanmax(np.where(self.struc_map==self.structures[i].id,self.level_map,np.nan))
-                pbar.update(1) if verbose else None
-                #'''
+        if supp_cols is not None and len(supp_cols) > 0:
+            supp_df = parent_df[supp_cols]
+            cols_to_update = ['sum_val','min_val','max_val','med_val']
+            supp_df.columns = [f"_{c}" if c in cols_to_update else c for c in supp_df.columns]
+            self.add_attributes(supp_df)
 
         if check_success:
             print('Validating assignments...') if verbose else None
@@ -569,14 +669,13 @@ class Structures(object):
             for i in range(self.n_struc):
                 skey = list(self.structure_keys)[i]
                 col_i_val = prop_df[col].values[prop_df['ID'].values == self.id[i]][0]
-                #self.structures[i]._npix = prop_df[col].values[prop_df['ID'].values == self.id[i]][0]
                 setattr(self.structures[skey], col, col_i_val)
             setattr(self, col,  np.array([getattr(self.structures[i],col) for i in self.structure_keys]))
 
 
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
-                                  export=True,odir='./',fname='run',verbose=False):
+                                  export=True,odir='./',fname='run',verbose=False, calc_supp_props=True):
 
         '''
         Compute the segment hierarchy.
@@ -615,7 +714,7 @@ class Structures(object):
             dim_invert = 2
         if len(self._imgshape) == 2:
             dim_invert = 1
-        flag_invert = False#self.htype[0]!=dim_invert
+        flag_invert = False #self.htype[0]!=dim_invert
         if self.htype[0] == 2:
             flag_invert = True
         ascend_death = self.sort_keys(s_include=s_include,invert=flag_invert)
@@ -625,7 +724,7 @@ class Structures(object):
             struc = self.structures[s]
             struc.compute_segment(img=img_jnp)
             # TO DO: move back to normal indices instead of raveled
-            struc_multi_inds = np.unravel_index(struc.indices, self._imgshape)
+            struc_multi_inds = struc.indices# np.unravel_index(struc.indices, self._imgshape)
             mask_count[struc_multi_inds] += 1
             self.structures[s]._level = np.nanmax(mask_count[struc_multi_inds])
 
@@ -638,18 +737,23 @@ class Structures(object):
             # overwriting seems to occur for structures that have death less than death of the large structure
             # i.e., the overwitten structures appeared earlier in the ascending death hierarchy
             # contradiciotn between IDs in order of ascending birth, and segmenting in order of ascending death?
-            parent_cand = np.nanmax(mask_s[struc_multi_inds]) ##### TO DO: check if this works in edge cases
+            ##### TO DO: check if this works in edge cases
+            parent_cand = np.nanmax(mask_s[struc_multi_inds])
             # because it's taking max id, but if multiple structures had pixels there, won't work
             if np.isfinite(parent_cand):
                 self.structures[s]._parent = int(parent_cand)
 
-            #mask_s[struc_multi_inds] = int(s)
-
-            unassigned_pixels = np.isnan(mask_s[struc_multi_inds])
+            mask_s[struc_multi_inds] = int(s)
+            """unassigned_pixels = np.isnan(mask_s[struc_multi_inds])
             if np.sum(unassigned_pixels) > 0:
                 mask_s[struc_multi_inds] = np.where(unassigned_pixels, int(s), mask_s[struc_multi_inds])
             if np.sum(unassigned_pixels) == 0:
-                mask_s[struc_multi_inds] = int(s)#'''
+                mask_s[struc_multi_inds] = int(s)#"""
+
+            if calc_supp_props:
+                struc._calculate_centroid(img=img_jnp)
+                struc._calculate_pix_values(img=img_jnp)
+                struc._calculate_bbox()
 
             struc._clear_indices()
             if verbose:
@@ -755,12 +859,44 @@ class Structures(object):
     ########################################################################
 
     def generators(self):
+        if self.df is None:
+            self._make_df()
+        return self.df[['Htype', 'Birth', 'Death','Birthpix_0', 'Birthpix_1', 'Birthpix_2',
+                        'Deathpix_0', 'Deathpix_1', 'Deathpix_2', 'ID_PH']].values
+
+    def _make_df(self):
         import pandas as pd
-        parent_df = pd.DataFrame({ 'Htype': self.htype, 'Birth': self.birth, 'Death': self.death,
-                                  'Birthpix_0': self.birthpix[:, 0], 'Birthpix_1': self.birthpix[:, 1],  'Birthpix_2': self.birthpix[:, 2],
-                                  'Deathpix_0': self.deathpix[:, 0], 'Deathpix_1': self.deathpix[:, 1],'Deathpix_2': self.deathpix[:, 2],
-                                   'ID_PH': self.id_ph})
-        return parent_df.values
+
+        parent_df = pd.DataFrame({'ID_PH': self.id_ph, 'ID': self.id,
+                                  'Htype': self.htype, 'Birth': self.birth, 'Death': self.death,
+                                  'Birthpix_0': self.birthpix[:, 0], 'Birthpix_1': self.birthpix[:, 1],
+                                  'Birthpix_2': self.birthpix[:, 2],
+                                  'Deathpix_0': self.deathpix[:, 0], 'Deathpix_1': self.deathpix[:, 1],
+                                  'Deathpix_2': self.deathpix[:, 2],
+                                  'Npix': self.npix, 'Parent_ID': np.array(self.parent, dtype='float32'),
+                                  'Level': np.array(self.level, dtype='float32')})
+
+        if self.sum_val  is not None:
+            parent_df['sum_val'] = self.sum_val
+            parent_df['min_val'] = self.min_val
+            parent_df['max_val'] = self.max_val
+            parent_df['median_val'] = self.med_val
+        if self.centroid is not None:
+            parent_df['centroid_0'] = self.centroid[:, 0]
+            parent_df['centroid_1'] = self.centroid[:, 1]
+            if self._ndim == 3:
+                parent_df['centroid_2'] = self.centroid[:, 2]
+            if self._ndim == 2:
+                parent_df['centroid_2'] = np.nan
+        if self.bbox is not None:
+            parent_df['bbox_min_0'] = self.bbox[:, 0, 0]
+            parent_df['bbox_min_1'] = self.bbox[:, 0, 1]
+            parent_df['bbox_min_2'] = self.bbox[:, 0, 2]
+            parent_df['bbox_max_0'] = self.bbox[:, 1, 0]
+            parent_df['bbox_max_1'] = self.bbox[:, 1, 1]
+            parent_df['bbox_max_2'] = self.bbox[:, 1, 2]
+
+        self.df = parent_df
 
     def export_segmentation(self, fname='run', odir = './'):
         '''
@@ -786,12 +922,10 @@ class Structures(object):
         hdul.append(fits.PrimaryHDU(data=np.array(self.struc_map, dtype='float32'), header=head))
         hdul.append(fits.PrimaryHDU(data=np.array(self.level_map, dtype='float32'), header=head))
 
-        parent_df = pd.DataFrame({'ID_PH': self.id_ph,  'ID': self.id,
-                                  'Htype': self.htype, 'Birth': self.birth, 'Death': self.death,
-                                  'Birthpix_0': self.birthpix[:,0], 'Birthpix_1': self.birthpix[:,1], 'Birthpix_2': self.birthpix[:,2],
-                                  'Deathpix_0': self.deathpix[:,0], 'Deathpix_1': self.deathpix[:,1], 'Deathpix_2': self.deathpix[:,2],
-                                  'Npix': self.npix, 'Parent_ID': np.array(self.parent,dtype='float32'),'Level': np.array(self.level,dtype='float32')})
-        hdul.append(fits.BinTableHDU(Table.from_pandas(parent_df)))
+        if self.df is None:
+            self._make_df()
+        hdul.append(fits.BinTableHDU(Table.from_pandas(self.df)))
+
         hdul.writeto(f'{odir}{fname}_perch_seg.fits', overwrite=True)
 
     def export_struc_map(self, fname='run', odir = './'):
