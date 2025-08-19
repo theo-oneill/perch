@@ -272,11 +272,11 @@ class Structures(object):
         return np.array([self.structures[i].max_val for i in self.structure_keys])
 
     @property
-    def med_val(self):
+    def median_val(self):
         '''
         Return the median values of each structure.
         '''
-        return np.array([self.structures[i].med_val for i in self.structure_keys])
+        return np.array([self.structures[i].median_val for i in self.structure_keys])
 
     @property
     def parent(self):
@@ -663,7 +663,7 @@ class Structures(object):
 
         if supp_cols is not None and len(supp_cols) > 0:
             supp_df = parent_df[supp_cols]
-            cols_to_update = ['sum_val','min_val','max_val','med_val']
+            cols_to_update = ['sum_val','min_val','max_val','median_val']
             supp_df.columns = [f"_{c}" if c in cols_to_update else c for c in supp_df.columns]
             coord_cols = ['centroid_0', 'centroid_1', 'centroid_2', 'bbox_min_0', 'bbox_min_1', 'bbox_min_2',
                            'bbox_max_0', 'bbox_max_1', 'bbox_max_2']
@@ -911,7 +911,7 @@ class Structures(object):
             parent_df['sum_val'] = self.sum_val
             parent_df['min_val'] = self.min_val
             parent_df['max_val'] = self.max_val
-            parent_df['median_val'] = self.med_val
+            parent_df['median_val'] = self.median_val
         if self.centroid is not None:
             parent_df['centroid_0'] = self.centroid[:, 0]
             parent_df['centroid_1'] = self.centroid[:, 1]

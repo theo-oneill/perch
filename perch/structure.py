@@ -81,7 +81,7 @@ class Structure(object):
 
         self._min_val = None
         self._max_val = None
-        self._med_val = None
+        self._median_val = None
 
         ## only use these after all structures have been segemented,
         #   and hierarchy computed
@@ -176,13 +176,13 @@ class Structure(object):
         return self._max_val
 
     @property
-    def med_val(self):
+    def median_val(self):
         '''
         Median value of the pixels in the structure.
         '''
-        if self._med_val is None:
+        if self._median_val is None:
             self._calculate_pix_values()
-        return self._med_val
+        return self._median_val
 
     @property
     def volume(self):
@@ -446,7 +446,7 @@ class Structure(object):
         self._sum_val = np.nansum(img_vals)
         self._min_val = np.nanmin(img_vals)
         self._max_val = np.nanmax(img_vals)
-        self._med_val = np.nanmedian(img_vals)
+        self._median_val = np.nanmedian(img_vals)
 
     def _calculate_geom_cent(self):
         '''
