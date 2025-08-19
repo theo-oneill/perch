@@ -74,6 +74,8 @@ class Structure(object):
         self._extreme_cent = None
         self._centroid = None
         self._bbox = None
+        self._bbox_min = None
+        self._bbox_max = None
 
         self._mask = None
 
@@ -257,7 +259,25 @@ class Structure(object):
         '''
         if self._bbox is None:
             self._calculate_bbox()
-        return self._bbox
+        return np.array([self._bbox_min, self._bbox_max])
+
+    @property
+    def bbox_min(self):
+        '''
+        Minimum coordinates of the bounding box of the structure.
+        '''
+        if self._bbox_min is None:
+            self._calculate_bbox()
+        return self._bbox_min
+
+    @property
+    def bbox_max(self):
+        '''
+        Maximum coordinates of the bounding box of the structure.
+        '''
+        if self._bbox_max is None:
+            self._calculate_bbox()
+        return self._bbox_max
 
     @property
     def extreme_pix(self):
@@ -497,6 +517,8 @@ class Structure(object):
         mins = np.min(self.indices, axis=1)
         maxs = np.max(self.indices, axis=1)
         self._bbox = np.array([mins, maxs])
+        self._bbox_min = mins
+        self._bbox_max = maxs
 
     def _calculate_surface_area(self, save_points=True,sdir='./'):
         '''

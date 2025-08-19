@@ -197,15 +197,13 @@ class Structures(object):
         '''
         return np.array([self.structures[i].centroid for i in self.structure_keys])
 
-    #@property
+    @property
     def centroid_0(self):
         return self.centroid[:, 0]
-
-    #@property
+    @property
     def centroid_1(self):
         return self.centroid[:, 1]
-
-    #@property
+    @property
     def centroid_2(self):
         if self._ndim == 3:
             return self.centroid[:, 2]
@@ -219,40 +217,45 @@ class Structures(object):
         '''
         return np.array([self.structures[i].bbox for i in self.structure_keys])
 
-    #@property
+    @property
+    def bbox_min(self):
+        '''
+        Return the minimum bounding box of each structure.
+        '''
+        return np.array([self.structures[i].bbox_min for i in self.structure_keys])
+
+    @property
+    def bbox_max(self):
+        '''
+        Return the maximum bounding box of each structure.
+        '''
+        return np.array([self.structures[i].bbox_max for i in self.structure_keys])
+
+    @property
     def bbox_min_0(self):
         return self.bbox[:, 0, 0]
-
-    #@property
+    @property
     def bbox_min_1(self):
         return self.bbox[:, 0, 1]
-
-    #@property
+    @property
     def bbox_min_2(self):
         return self.bbox[:, 0, 2] if self._ndim == 3 else None
-
-    #@property
+    @property
     def bbox_max_0(self):
         return self.bbox[:, 1, 0]
-
-    #@property
+    @property
     def bbox_max_1(self):
         return self.bbox[:, 1, 1]
-
-    #@property
+    @property
     def bbox_max_2(self):
         return self.bbox[:, 1, 2] if self._ndim == 3 else None
 
     @property
     def sum_val(self):
         '''
-        Return the geometric center of each structure.
+        Return the integrated value of pixels assigned to each structure.
         '''
         return np.array([self.structures[i].sum_val for i in self.structure_keys])
-
-    #@sum_values.setter
-    #def sum_values(self, val_array):
-    #    self.sum_values = val_array
 
     @property
     def min_val(self):
@@ -393,7 +396,7 @@ class Structures(object):
         return self.wcs.pixel_to_world(self.centroid[:,0],self.centroid[:,1],self.centroid[:,2])
 
     @property
-    def bbox_coord(self):
+    def bbox_min_coord(self):
         '''
         Return the WCS bounding box coordinates of each structure.
         '''
@@ -401,16 +404,29 @@ class Structures(object):
             print('Error: must input wcs!')
             return
         bbox_min = self.wcs.pixel_to_world(self.bbox[:,0,0],self.bbox[:,0,1],self.bbox[:,0,2])
-        bbox_max = self.wcs.pixel_to_world(self.bbox[:,1,0],self.bbox[:,1,1],self.bbox[:,1,2])
 
-        return [bbox_min, bbox_max]
+        return bbox_min
+
+    @property
+    def bbox_max_coord(self):
+        '''
+        Return the WCS bounding box coordinates of each structure.
+        '''
+        if self.wcs is None:
+            print('Error: must input wcs!')
+            return
+        bbox_max = self.wcs.pixel_to_world(self.bbox[:,0,0],self.bbox[:,0,1],self.bbox[:,0,2])
+
+        return bbox_max
+
 
     @property
     def equiv_radius_coord(self):
         '''
         Return the WCS equivalent radius of each structure.
+
+         NOTE: ASSUMES EVEN PIXEL SCALES!!!
         '''
-        ## NOTE: ASSUMES EVEN PIXEL SCALES!!!
         if self.wcs is None:
             print('Error: must input wcs!')
             return
@@ -420,6 +436,8 @@ class Structures(object):
     def volume_coord(self):
         '''
         Return the WCS volume of each structure.
+
+         NOTE: ASSUMES EVEN PIXEL SCALES!!!
         '''
         if self.wcs is None:
             print('Error: must input wcs!')
@@ -647,7 +665,20 @@ class Structures(object):
             supp_df = parent_df[supp_cols]
             cols_to_update = ['sum_val','min_val','max_val','med_val']
             supp_df.columns = [f"_{c}" if c in cols_to_update else c for c in supp_df.columns]
-            self.add_attributes(supp_df)
+            coord_cols = ['centroid_0', 'centroid_1', 'centroid_2', 'bbox_min_0', 'bbox_min_1', 'bbox_min_2',
+                           'bbox_max_0', 'bbox_max_1', 'bbox_max_2']
+            df_exclude_coords = supp_df.columns[~np.isin(supp_df.columns, coord_cols)]
+            self.add_attributes(supp_df[df_exclude_coords])
+
+            coord_pref_list = ['centroid', 'bbox_min', 'bbox_max']
+            for coord_pref in coord_pref_list:
+                if f'{coord_pref}_0' in supp_df.columns:
+                    centroid_stack = np.stack((supp_df[f'{coord_pref}_0'].values, supp_df[f'{coord_pref}_1'].values,supp_df[f'{coord_pref}_2'].values), axis=1)
+                    for i in range(self.n_struc):
+                        skey = list(self.structure_keys)[i]
+                        col_i_val = centroid_stack[supp_df['ID'].values == self.id[i]][0]
+                        setattr(self.structures[skey], f'_{coord_pref}', col_i_val)
+                   #setattr(self, f'_{coord_pref}', np.array([getattr(self.structures[i], f'_{coord_pref}') for i in self.structure_keys]))
 
         if check_success:
             print('Validating assignments...') if verbose else None
