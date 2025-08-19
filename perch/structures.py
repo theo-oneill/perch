@@ -403,7 +403,7 @@ class Structures(object):
         if self.wcs is None:
             print('Error: must input wcs!')
             return
-        bbox_min = self.wcs.pixel_to_world(self.bbox[:,0,0],self.bbox[:,0,1],self.bbox[:,0,2])
+        bbox_min = self.wcs.pixel_to_world(self.bbox_min[:,0],self.bbox_min[:,1],self.bbox_min[:,2])
 
         return bbox_min
 
@@ -415,7 +415,7 @@ class Structures(object):
         if self.wcs is None:
             print('Error: must input wcs!')
             return
-        bbox_max = self.wcs.pixel_to_world(self.bbox[:,0,0],self.bbox[:,0,1],self.bbox[:,0,2])
+        bbox_max = self.wcs.pixel_to_world(self.bbox_max[:,0],self.bbox_max[:,1],self.bbox_max[:,2])
 
         return bbox_max
 
