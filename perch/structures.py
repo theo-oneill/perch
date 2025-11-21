@@ -706,7 +706,7 @@ class Structures(object):
 
 
     def compute_segment_hierarchy(self, img_jnp=None,  s_include = None, clobber=True,
-                                  export=True,odir='./',fname='run',verbose=False, calc_supp_props=True):
+                                  export=True,odir='./',fname='run',verbose=False, calc_supp_props=True,clear_indices=True):
 
         '''
         Compute the segment hierarchy.
@@ -727,6 +727,8 @@ class Structures(object):
             File name.
         verbose : bool
             Verbose output.
+        clear_indices : bool
+            Clear the pixel indices after computation (saves memory).
 
         '''
 
@@ -746,8 +748,8 @@ class Structures(object):
         if len(self._imgshape) == 2:
             dim_invert = 1
         flag_invert = False #self.htype[0]!=dim_invert
-        if self.htype[0] == 2:
-            flag_invert = True
+        #if self.htype[0] == 2:
+        #    flag_invert = True
         ascend_death = self.sort_keys(s_include=s_include,invert=flag_invert)
         if verbose:
             pbar = tqdm(total=len(ascend_death), unit='structures')
@@ -786,7 +788,8 @@ class Structures(object):
                 struc._calculate_pix_values(img=img_jnp)
                 struc._calculate_bbox()
 
-            struc._clear_indices()
+            if clear_indices:
+                struc._clear_indices()
             if verbose:
                 pbar.update(1)
 
