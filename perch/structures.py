@@ -496,9 +496,9 @@ class Structures(object):
         struc_map_mask = np.where(mask, self.struc_map, np.nan)
         return struc_map_mask
 
-    def sort_keys(self, s_include = None, invert=False):
+    def sort_death(self, s_include = None, invert=False):
         '''
-        Sort the structure keys.
+        Sort the structures by death.
 
         Parameters:
         -----------
@@ -511,23 +511,28 @@ class Structures(object):
         if s_include is None:
             s_include = list(self.structure_keys)
         if not invert:
-            return np.argsort(self.death[s_include])
+            return np.lexsort((self.birth[s_include], self.death[s_include])) # Sort by death from low to high, then by birth from low to high for ties
         if invert:
-            return np.argsort(self.death[s_include])[::-1]
+            return np.lexsort((self.birth[s_include], self.death[s_include]))[::-1]
 
-    def sort_birth(self, s_include = None):
+    def sort_birth(self, s_include = None, invert=False):
         '''
-        Sort the structures by birth time.
+        Sort the structures by birth.
 
         Parameters:
         -----------
         s_include : list
             List of structure IDs to include.
+        invert : bool
+            Invert the sorting.
 
         '''
         if s_include is None:
             s_include = list(self.structure_keys)
-        return np.argsort(self.birth[s_include])
+        if not invert:
+            return np.lexsort((self.death[s_include], self.birth[s_include])) # Sort by birth from low to high, then by death from low to high for ties
+        if invert:
+            return  np.lexsort((self.death[s_include], self.birth[s_include]))[::-1]
 
     def _set_descendants(self, s = None):
         """
@@ -673,7 +678,10 @@ class Structures(object):
             coord_pref_list = ['centroid', 'bbox_min', 'bbox_max']
             for coord_pref in coord_pref_list:
                 if f'{coord_pref}_0' in supp_df.columns:
-                    centroid_stack = np.stack((supp_df[f'{coord_pref}_0'].values, supp_df[f'{coord_pref}_1'].values,supp_df[f'{coord_pref}_2'].values), axis=1)
+                    if self._ndim ==3:
+                        centroid_stack = np.stack((supp_df[f'{coord_pref}_0'].values, supp_df[f'{coord_pref}_1'].values,supp_df[f'{coord_pref}_2'].values), axis=1)
+                    if self._ndim ==2:
+                        centroid_stack = np.stack((supp_df[f'{coord_pref}_0'].values, supp_df[f'{coord_pref}_1'].values), axis=1)
                     for i in range(self.n_struc):
                         skey = list(self.structure_keys)[i]
                         col_i_val = centroid_stack[supp_df['ID'].values == self.id[i]][0]
@@ -747,41 +755,37 @@ class Structures(object):
             dim_invert = 2
         if len(self._imgshape) == 2:
             dim_invert = 1
-        flag_invert = False #self.htype[0]!=dim_invert
-        #if self.htype[0] == 2:
-        #    flag_invert = True
-        ascend_death = self.sort_keys(s_include=s_include,invert=flag_invert)
+
+        if len(np.unique(self.htype)) > 1:
+            print('Warning: multiple homology groups detected.  Segmentation order may be incorrect!  Please segment each homology groups separately.')
+
+        if self.htype[0] == 0:
+            seg_order = self.sort_death(s_include=s_include,invert=False) # ascend death
+        if self.htype[0] == dim_invert:
+            seg_order = self.sort_birth(s_include=s_include,invert=True) # descend birth
+
         if verbose:
-            pbar = tqdm(total=len(ascend_death), unit='structures')
-        for s in ascend_death:
+            pbar = tqdm(total=len(seg_order), unit='structures')
+        for s in seg_order:
             struc = self.structures[s]
             struc.compute_segment(img=img_jnp)
-            # TO DO: move back to normal indices instead of raveled
-            struc_multi_inds = struc.indices# np.unravel_index(struc.indices, self._imgshape)
+
+            struc_multi_inds = struc.indices
             mask_count[struc_multi_inds] += 1
             self.structures[s]._level = np.nanmax(mask_count[struc_multi_inds])
 
-            # IDs are in order of lowest birth to highest birth
-            # so nanmax will find the structure in the index footprint with the highest ID i.e. highest birth
-            # so it's the most recent structure in the footprint so i think this definition of parent is good
-            # unless want parent to be structure with most recent death?
-            # need to think more about this
-
-            # overwriting seems to occur for structures that have death less than death of the large structure
-            # i.e., the overwitten structures appeared earlier in the ascending death hierarchy
-            # contradiciotn between IDs in order of ascending birth, and segmenting in order of ascending death?
-            ##### TO DO: check if this works in edge cases
-            parent_cand = np.nanmax(mask_s[struc_multi_inds])
-            # because it's taking max id, but if multiple structures had pixels there, won't work
-            if np.isfinite(parent_cand):
+            parent_cands = np.unique(mask_s[struc_multi_inds])
+            parent_cands = parent_cands[~np.isnan(parent_cands)]
+            if len(parent_cands) > 0:
+                if self.htype[0] == 0:
+                    parent_deaths = self.death[parent_cands.astype(int)]
+                    parent_cand = parent_cands[np.argmax(parent_deaths)]
+                if self.htype[0] == dim_invert:
+                    parent_births = self.birth[parent_cands.astype(int)]
+                    parent_cand = parent_cands[np.argmin(parent_births)]
                 self.structures[s]._parent = int(parent_cand)
 
             mask_s[struc_multi_inds] = int(s)
-            """unassigned_pixels = np.isnan(mask_s[struc_multi_inds])
-            if np.sum(unassigned_pixels) > 0:
-                mask_s[struc_multi_inds] = np.where(unassigned_pixels, int(s), mask_s[struc_multi_inds])
-            if np.sum(unassigned_pixels) == 0:
-                mask_s[struc_multi_inds] = int(s)#"""
 
             if calc_supp_props:
                 struc._calculate_centroid(img=img_jnp)
@@ -801,7 +805,7 @@ class Structures(object):
         self._trunk = [structure for structure in self.all_structures if structure.parent == None]
         self._leaves = [structure for structure in self.all_structures if structure.is_leaf]
 
-        for s in ascend_death:
+        for s in seg_order:
             self._set_descendants(s)
         self.struc_map = mask_s
         self.level_map = np.where(mask_count>0,mask_count,np.nan)
@@ -925,10 +929,12 @@ class Structures(object):
         if self.bbox is not None:
             parent_df['bbox_min_0'] = self.bbox[:, 0, 0]
             parent_df['bbox_min_1'] = self.bbox[:, 0, 1]
-            parent_df['bbox_min_2'] = self.bbox[:, 0, 2]
+            if self._ndim == 3:
+                parent_df['bbox_min_2'] = self.bbox[:, 0, 2]
             parent_df['bbox_max_0'] = self.bbox[:, 1, 0]
             parent_df['bbox_max_1'] = self.bbox[:, 1, 1]
-            parent_df['bbox_max_2'] = self.bbox[:, 1, 2]
+            if self._ndim == 3:
+                parent_df['bbox_max_2'] = self.bbox[:, 1, 2]
 
         self.df = parent_df
 
