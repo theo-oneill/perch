@@ -8,6 +8,18 @@ Installation
 
 Basic Installation
 ~~~~~~~~~~~~~~~~~~
+perch depends on the following packages:
+- cripser
+- astropy
+- numpy
+- matplotlib
+- cc3d (pip install connected-components-3d)
+- jax
+
+For local installations, the required packages can be installed with pip:
+
+>>> pip install astropy numpy matplotlib
+>>> pip install cripser connected-components-3d jax
 
 To install perch from source:
 
