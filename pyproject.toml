@@ -1,11 +1,8 @@
-#[build-system]
-#requires = ["flit_core >=3.2,<4"]
-#build-backend = "flit_core.buildapi"
-
 [project]
 name = "perch"
+description = "perch is a python package for applying the topological technique of persistent homology to images & cubes"
 authors = [{name = "ONeill"}]
-dynamic = ["version", "description"]
+dynamic = ["version"]
 requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
@@ -49,6 +46,10 @@ requires = [
             "setuptools>=61.2",
             "setuptools_scm"
            ]
+
+#[build-system]
+#requires = ["flit_core >=3.2,<4"]
+#build-backend = "flit_core.buildapi"
 
 
 [tool.setuptools]
