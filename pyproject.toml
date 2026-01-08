@@ -4,7 +4,7 @@
 
 [project]
 name = "perch"
-authors = [{name = "ONeill", email = "graziella@lumache"}]
+authors = [{name = "ONeill"}]
 dynamic = ["version", "description"]
 requires-python = ">=3.10"
 classifiers = [
