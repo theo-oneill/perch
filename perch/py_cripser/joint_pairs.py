@@ -5,7 +5,7 @@ from perch.py_cripser.union_find import UnionFind
 from perch.py_cripser.write_pairs import WritePairs
 from perch.py_cripser.config import Config
 import pdb
-import numba
+# import numba
 from functools import cmp_to_key
 import concurrent.futures
 import time
