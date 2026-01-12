@@ -9,6 +9,11 @@ Installation
 Basic Installation
 ~~~~~~~~~~~~~~~~~~
 
+For local installations, the required packages can be installed with pip:
+
+>>> pip install astropy numpy matplotlib
+>>> pip install cripser connected-components-3d jax
+
 To install perch from source:
 
 .. code-block:: bash
@@ -28,10 +33,10 @@ Perch requires the following external libraries for the PH computation and struc
 
 .. code-block:: bash
 
-   pip install cripser cc3d
+   pip install cripser connected-components-3d
 
 - ``cripser``: Fast C++ library (cubical ripser) for PH computation
-- ``cc3d``: Connected components for structure segmentation
+- ``cc3d`` (connected-components-3d): Connected components for structure segmentation
 
 Optional Dependencies
 ~~~~~~~~~~~~~~~~~~~~~
