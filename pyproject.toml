@@ -32,6 +32,8 @@ dev = [
 ]
 docs = [
   "sphinx-astropy",
+  "mock",
+  "sphinx-rtd-theme",
 ]
 
 
