@@ -77,7 +77,7 @@ The persistence diagram shows all detected structures. Points far from the diago
    print(f"Selected {peaks.n_struc} significant peaks")
 
 Step 3: Segment image and Build Hierarchy
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 

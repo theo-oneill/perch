@@ -6,6 +6,7 @@ API
 
    :recursive: True
 
+   perch
    perch.ph
    perch.structures
    perch.structure
