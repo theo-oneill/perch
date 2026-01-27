@@ -1,5 +1,7 @@
 .idea
 
+# setuptools-scm generated version:
+*version.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
