@@ -17,7 +17,7 @@ dependencies = [
   "setuptools>=62.3.3",
   "tqdm>=4.64",
   "jax",
-  "matplotlib",
+  "matplotlib>=3",
   "cripser",
   "connected-components-3d",
 ]
@@ -32,6 +32,9 @@ dev = [
 ]
 docs = [
   "sphinx-astropy",
+  "mock",
+  "sphinx-rtd-theme",
+  "sphinx_autodoc_typehints",
 ]
 
 
@@ -64,6 +67,10 @@ find = { namespaces = false }
   "data/*",
   "data/*/*",
 ]
+
+[tool.setuptools_scm]
+write_to = "perch/version.py"
+
 
 [tool.pytest.ini_options]
 minversion = "3.0"
