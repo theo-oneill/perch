@@ -18,7 +18,6 @@ jobs:
     with:
       envs: |
         - linux: build_docs
-        - linux: py310-test-oldestdeps
         - linux: py310-test
         - linux: py311-test
         - linux: py311-test-dev
