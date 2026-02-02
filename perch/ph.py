@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 from perch.structures import Structures
+import cripser
 
 class PH(object):
 
@@ -81,7 +82,7 @@ class PH(object):
         return img_prep, buff_val
 
     def compute_hom(data=None, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
-                    engine='C', noise=None,prep_img_kwargs={}):
+                     noise=None,prep_img_kwargs={}):
 
         '''
         Compute persistent homology.
@@ -100,8 +101,6 @@ class PH(object):
             Print progress.
         embedded : bool
             Compute embedded PH.
-        engine : str
-            PH computation engine ('C' or 'py').
         noise : np.ndarray
             Noise map of same shape as data.
 
@@ -127,12 +126,7 @@ class PH(object):
         self.noise = noise
 
         # define PH computation engine
-        if engine == 'C':
-            import cripser
-            self.ph_fxn = cripser.computePH
-        if engine == 'py':
-            from perch.py_cripser.cubicalripser_pybind import compute_ph
-            self.ph_fxn = compute_ph
+        self.ph_fxn = cripser.computePH
 
         if verbose:
             import time
