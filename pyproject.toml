@@ -18,7 +18,7 @@ dependencies = [
   "tqdm>=4.64",
   "jax",
   "matplotlib>=3",
-  "cripser",
+  "cripser>=0.0.16",
   "connected-components-3d",
 ]
 
