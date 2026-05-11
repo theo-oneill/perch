@@ -42,7 +42,7 @@ The workflow for 3D data cubes is the same as 2D, but you can compute higher-dim
 Working with FITS Files
 ------------------------
 
-perch integrates seamlessly with astropy for astronomical FITS files and World Coordinate Systems (WCS):
+perch integrates with astropy for astronomical FITS files and World Coordinate Systems (WCS):
 
 .. code-block:: python
 
@@ -150,34 +150,17 @@ After segmentation, you can explore the hierarchical relationships between struc
    print(f"  Descendants: {structure.descendants}")
    print(f"  Level: {structure.level}")
 
-Multi-Scale Analysis
-~~~~~~~~~~~~~~~~~~~~
-
-The hierarchy allows you to analyze structures at different scales:
-
-.. code-block:: python
-
-   # Get trunk structures (most persistent, no parents)
-   trunk_structures = all_peaks.trunk
-
-   # Get leaf structures (finest scale, no children)
-   leaf_structures = all_peaks.leaves
-
-   # Analyze structures at a specific hierarchy level
-   level_2_structs = [s for s in all_peaks.all_structures if s.level == 2]
 
 Tips for Large Datasets
 ------------------------
 
 1. **Memory management**: Use ``clear_indices=True`` (default) in ``compute_segment_hierarchy()``
 
-2. **Incremental analysis**: Compute H₀ first, analyze results, then decide if higher dimensions are needed
+2. **Alexander duality**: For 3D voids in billion-voxel datasets, use H₀ of inverted data instead of H₂
 
-3. **Alexander duality**: For 3D voids in billion-voxel datasets, use H₀ of inverted data instead of H₂
+3. **Filtering before segmentation**: Apply aggressive filtering before segmentation to reduce computation
 
-4. **Filtering before segmentation**: Apply aggressive filtering before segmentation to reduce computation
-
-5. **Export intermediate results**: Save generators after computation to avoid recomputing during exploration
+4. **Export intermediate results**: Save generators after computation to avoid recomputing during exploration
 
 .. code-block:: python
 

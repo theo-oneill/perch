@@ -123,16 +123,9 @@ Parent-Child Relationships
 The segmentation process creates a natural hierarchy, analogous to the structure of dendrograms, and enables multi-scale analysis of nested structures.
 
 - **Child**: A structure that overlaps with and merges into another structure
-- **Parent**: The structure that a child merges into
-- **Trunk**: The most persistent structure(s) with no parent
+- **Parent**: The pre-existing structure that a child merges into
+- **Trunk**: Structures with children but no parents (highest in hierarchy)
 - **Leaves**: Structures with no children (lowest in hierarchy)
 
 **Descendants**: All structures that eventually merge into a given structure (children, grandchildren, etc.)
 
-
-Alexander Duality
------------------
-
-The highest homology dimension (H₁ in 2D, H₂ in 3D) is mathematically equivalent to H₀ of the inverted data.
-
-For very large datasets (billions of voxels), computing H₂ directly can be slow. In these cases, computing H₀ of inverted data provides the same result with better performance.

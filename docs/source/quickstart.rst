@@ -185,11 +185,12 @@ Homology groups are computed in order (H₀, H₁, H₂). Higher dimensions incr
 Filtering Thresholds
 ~~~~~~~~~~~~~~~~~~~~
 
-Common strategies:
+Common strategies (in rough order of recommendation):
 
-1. **Visual inspection**: Plot persistence diagram, identify gap between noise and signal
-2. **Fixed threshold**: Use domain knowledge (e.g., 5-sigma above noise)
-3. **Normalized persistence**: ``min_life_norm_birth`` for scale-independent selection
+1. **Fixed threshold**: Use domain knowledge (e.g., 5-sigma above noise)
+2. **Normalized persistence**: ``min_life_norm_birth`` for scale-independent selection
+3. **Visual inspection**: Plot persistence diagram, identify gap between noise and signal
+
 
 .. code-block:: python
 
