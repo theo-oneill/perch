@@ -67,15 +67,20 @@ def pers_diagram(hom, ax=None, dimensions=None):
 
     plotcol = [hom.filter(dimension=d) for d in dimensions]
     ravpc = hom.generators  # np.array(plotcol).ravel()
+    sentinel = np.finfo(ravpc.dtype).min if np.issubdtype(ravpc.dtype, np.floating) else None
+    bd = ravpc[:, 1:3].copy()
+    if sentinel is not None:
+        bd[bd == sentinel] = np.nan
+        bd[bd == -sentinel] = np.nan
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     for d in range(len(dimensions)):
-        ax.scatter(plotcol[d][:, 1], plotcol[d][:, 2], s=3, alpha=0.5, c=hcol[dimensions[d]])  # ,c=hcol[plotcol[:,0]])
-    ax.plot([-np.nanmax(np.abs(ravpc[:, 1:3])), np.nanmax(np.abs(ravpc[:, 1:3]))],
-            [-np.nanmax(np.abs(ravpc[:, 1:3])), np.nanmax(np.abs(ravpc[:, 1:3]))], c='grey', ls='--', alpha=0.5, lw=0.5)
-    ax.set_xlim(1.1 * np.nanmin(ravpc[:, 1]), 1.1 * np.nanmax(ravpc[:, 1]))
-    ax.set_ylim(1.1 * np.nanmin(ravpc[:, 2]), 1.1 * np.nanmax(ravpc[:, 2]))
+        ax.scatter(plotcol[d].birth, plotcol[d].death, s=3, alpha=0.5, c=hcol[dimensions[d]])
+    ax.plot([-np.nanmax(np.abs(bd)), np.nanmax(np.abs(bd))],
+            [-np.nanmax(np.abs(bd)), np.nanmax(np.abs(bd))], c='grey', ls='--', alpha=0.5, lw=0.5)
+    ax.set_xlim(1.1 * np.nanmin(bd[:, 0]), 1.1 * np.nanmax(bd[:, 0]))
+    ax.set_ylim(1.1 * np.nanmin(bd[:, 1]), 1.1 * np.nanmax(bd[:, 1]))
     ax.set_xlabel('Birth', fontsize=14)
     ax.set_ylabel('Death', fontsize=14)
     markers = [plt.Line2D([0, 0], [0, 0], color=color, marker='o', linestyle='') for color in
@@ -109,8 +114,8 @@ def lifetime_diagram(hom, ax=None, dimensions=None):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     for d in range(len(dimensions)):
-        ax.scatter(plotcol[d][:, 1], np.abs(plotcol[d][:, 2] - plotcol[d][:, 1]), s=3, alpha=0.5,
-                   c=hcol[dimensions[d]])  # ,c=hcol[plotcol[:,0]])
+        ax.scatter(plotcol[d].birth, np.abs(plotcol[d].death - plotcol[d].birth), s=3, alpha=0.5,
+                   c=hcol[dimensions[d]])
     # ax.set_xlim(1.1*np.min(plotcol[:,1]),1.1*np.max(plotcol[:,1]))
     # ax.set_ylim(1.1*np.min(plotcol[:,2]),1.1*np.max(plotcol[:,2]))
     ax.set_xlabel('Birth', fontsize=14)

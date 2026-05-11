@@ -749,20 +749,36 @@ class Structures(object):
         if clobber:
             self._clear_hierarchy()
 
-        ### calculate parents
-        # TO DO: remove
         if len(self._imgshape) > 2:
             dim_invert = 2
         if len(self._imgshape) == 2:
             dim_invert = 1
 
-        if len(np.unique(self.htype)) > 1:
+        # Cache property arrays to avoid recomputing in loop
+        htype_arr = self.htype
+        death_arr = self.death
+        birth_arr = self.birth
+
+        if len(htype_arr) == 0:
+            self.struc_map = mask_s
+            self.level_map = np.where(mask_count > 0, mask_count, np.nan)
+            self._trunk = []
+            self._leaves = []
+            if verbose:
+                print('No structures to segment.')
+            return
+
+        if len(np.unique(htype_arr)) > 1:
             print('Warning: multiple homology groups detected.  Segmentation order may be incorrect!  Please segment each homology groups separately.')
 
-        if self.htype[0] == 0:
+        if htype_arr[0] == 0:
             seg_order = self.sort_death(s_include=s_include,invert=False) # ascend death
-        if self.htype[0] == dim_invert:
+        if htype_arr[0] == dim_invert:
             seg_order = self.sort_birth(s_include=s_include,invert=True) # descend birth
+
+        # Convert to numpy once for supplementary property calculations
+        # (avoids JAX recompilation overhead for variable-sized index arrays)
+        img_np = np.asarray(img_jnp) if calc_supp_props else None
 
         if verbose:
             pbar = tqdm(total=len(seg_order), unit='structures')
@@ -777,19 +793,19 @@ class Structures(object):
             parent_cands = np.unique(mask_s[struc_multi_inds])
             parent_cands = parent_cands[~np.isnan(parent_cands)]
             if len(parent_cands) > 0:
-                if self.htype[0] == 0:
-                    parent_deaths = self.death[parent_cands.astype(int)]
+                if htype_arr[0] == 0:
+                    parent_deaths = death_arr[parent_cands.astype(int)]
                     parent_cand = parent_cands[np.argmax(parent_deaths)]
-                if self.htype[0] == dim_invert:
-                    parent_births = self.birth[parent_cands.astype(int)]
+                if htype_arr[0] == dim_invert:
+                    parent_births = birth_arr[parent_cands.astype(int)]
                     parent_cand = parent_cands[np.argmin(parent_births)]
                 self.structures[s]._parent = int(parent_cand)
 
             mask_s[struc_multi_inds] = int(s)
 
             if calc_supp_props:
-                struc._calculate_centroid(img=img_jnp)
-                struc._calculate_pix_values(img=img_jnp)
+                struc._calculate_centroid(img=img_np)
+                struc._calculate_pix_values(img=img_np)
                 struc._calculate_bbox()
 
             if clear_indices:

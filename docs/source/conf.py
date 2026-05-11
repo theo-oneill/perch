@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 import mock
 
-MOCK_MODULES = ['numpy', 'matplotlib', 'matplotlib.pyplot', 'cc3d', 'jax', 'jax.numpy', 'tqdm']
+MOCK_MODULES = ['numpy', 'matplotlib', 'matplotlib.pyplot', 'cc3d', 'cripser', 'jax', 'jax.numpy', 'tqdm']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 

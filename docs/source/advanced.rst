@@ -158,10 +158,10 @@ The hierarchy allows you to analyze structures at different scales:
 .. code-block:: python
 
    # Get trunk structures (most persistent, no parents)
-   trunk_structures = [all_peaks.structures[sid] for sid in all_peaks.trunk]
+   trunk_structures = all_peaks.trunk
 
    # Get leaf structures (finest scale, no children)
-   leaf_structures = [all_peaks.structures[sid] for sid in all_peaks.leaves]
+   leaf_structures = all_peaks.leaves
 
    # Analyze structures at a specific hierarchy level
    level_2_structs = [s for s in all_peaks.all_structures if s.level == 2]
