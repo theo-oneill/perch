@@ -744,6 +744,9 @@ class Structures(object):
         mask_count = np.full((self._imgshape), 0.)
 
         if type(img_jnp) is np.ndarray:
+            # FITS arrays are big-endian; jax >= 0.10 only accepts native byte order.
+            if not img_jnp.dtype.isnative:
+                img_jnp = img_jnp.astype(img_jnp.dtype.newbyteorder('='))
             img_jnp = jnp.array(img_jnp)
 
         if clobber:

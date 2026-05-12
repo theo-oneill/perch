@@ -367,6 +367,9 @@ class Structure(object):
 
         # check if image is numpy array
         if type(img) is np.ndarray:
+            # FITS arrays are big-endian; jax >= 0.10 only accepts native byte order.
+            if not img.dtype.isnative:
+                img = img.astype(img.dtype.newbyteorder('='))
             img = jnp.array(img)
 
         if self.htype == 0:
