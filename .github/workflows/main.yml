@@ -16,6 +16,7 @@ jobs:
   test:
     uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@v2
     with:
+      coverage: codecov
       envs: |
         - linux: build_docs
         - linux: py310-test
@@ -23,5 +24,6 @@ jobs:
         - linux: py311-test-dev
         - linux: py312-test
         - linux: py313-test
+        - linux: py313-test-cov
         - macos: py313-test-dev
         - windows: py313-test-dev

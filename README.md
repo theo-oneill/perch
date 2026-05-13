@@ -29,3 +29,32 @@ A few comments:
 - tqdm
 
 
+#### Running the tests
+
+After installing the test extras (`pip install -e ".[test]"`), the
+test suite runs in a few seconds:
+
+```
+pytest perch/tests/
+```
+
+Diagnostic plots of the synthetic fixtures (PH on toy peaks, ring, shell,
+and the segmentation maps) are written when `--perch-plots` is passed.
+The default output directory is `<repo>/test_plots/` (gitignored):
+
+```
+pytest perch/tests/ --perch-plots
+pytest perch/tests/ --perch-plots=/custom/output/dir
+```
+
+Frozen-output regression tests live in `perch/tests/test_regression.py`
+and compare against references in `perch/tests/data/*.npz`. After an
+intentional change to `PH.compute_hom`, regenerate the references with:
+
+```
+python -m perch.tests.data._regenerate
+```
+
+The diff in the resulting `.npz` files is the change log for the
+regression suite.
+

@@ -1,3 +1,5 @@
+import warnings
+
 import numpy  as np
 from tqdm import tqdm
 from perch.structure import *
@@ -348,15 +350,26 @@ class Structures(object):
 
     #####################################################
 
+    def _pixel_to_world(self, pix):
+        """Dispatch ``wcs.pixel_to_world`` over a (n_struc, ndim) pixel array.
+
+        Internal helper used by every per-structure ``*_coord`` property to
+        avoid duplicating the 2D/3D switch.
+        """
+        if self._ndim == 2:
+            return self.wcs.pixel_to_world(pix[:, 0], pix[:, 1])
+        if self._ndim == 3:
+            return self.wcs.pixel_to_world(pix[:, 0], pix[:, 1], pix[:, 2])
+        raise NotImplementedError(f"WCS coord dispatch for ndim={self._ndim}")
+
     @property
     def birthpix_coord(self):
         '''
         Return the WCS birth coordinates of each structure.
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
-        return self.wcs.pixel_to_world(self.birthpix[:,0],self.birthpix[:,1],self.birthpix[:,2])
+            raise ValueError("Structures has no WCS attached")
+        return self._pixel_to_world(self.birthpix)
 
     @property
     def deathpix_coord(self):
@@ -364,12 +377,8 @@ class Structures(object):
         Return the  WCS death coordinates of each structure.
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
-        if self._ndim == 2:
-            return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1])
-        if self._ndim == 3:
-            return self.wcs.pixel_to_world(self.deathpix[:,0],self.deathpix[:,1],self.deathpix[:,2])
+            raise ValueError("Structures has no WCS attached")
+        return self._pixel_to_world(self.deathpix)
 
     @property
     def geom_cent_coord(self):
@@ -377,47 +386,40 @@ class Structures(object):
         Return the WCS geometric center coordinates of each structure.
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
-        return self.wcs.pixel_to_world(self.geom_cent)
+            raise ValueError("Structures has no WCS attached")
+        return self._pixel_to_world(self.geom_cent)
 
     @property
     def centroid_coord(self):
         '''
         Return the WCS centroid coordinates of each structure.
-
-        TO DO: add centroid calculation
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
+            raise ValueError("Structures has no WCS attached")
         if self.centroid is None:
-            print('Error: must calculate centroid!')
-        return self.wcs.pixel_to_world(self.centroid[:,0],self.centroid[:,1],self.centroid[:,2])
+            raise RuntimeError(
+                "centroid has not been computed; call compute_segment_hierarchy "
+                "(with calc_supp_props=True) or _calculate_centroid first"
+            )
+        return self._pixel_to_world(self.centroid)
 
     @property
     def bbox_min_coord(self):
         '''
-        Return the WCS bounding box coordinates of each structure.
+        Return the WCS bounding box minimum coordinates of each structure.
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
-        bbox_min = self.wcs.pixel_to_world(self.bbox_min[:,0],self.bbox_min[:,1],self.bbox_min[:,2])
-
-        return bbox_min
+            raise ValueError("Structures has no WCS attached")
+        return self._pixel_to_world(self.bbox_min)
 
     @property
     def bbox_max_coord(self):
         '''
-        Return the WCS bounding box coordinates of each structure.
+        Return the WCS bounding box maximum coordinates of each structure.
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
-        bbox_max = self.wcs.pixel_to_world(self.bbox_max[:,0],self.bbox_max[:,1],self.bbox_max[:,2])
-
-        return bbox_max
+            raise ValueError("Structures has no WCS attached")
+        return self._pixel_to_world(self.bbox_max)
 
 
     @property
@@ -428,8 +430,7 @@ class Structures(object):
          NOTE: ASSUMES EVEN PIXEL SCALES!!!
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
+            raise ValueError("Structures has no WCS attached")
         return np.abs(np.diag(self.wcs.pixel_scale_matrix)[0]) * self.equiv_radius
 
     @property
@@ -440,9 +441,8 @@ class Structures(object):
          NOTE: ASSUMES EVEN PIXEL SCALES!!!
         '''
         if self.wcs is None:
-            print('Error: must input wcs!')
-            return
-        volpc_pixel = np.product(np.diag(self.wcs.pixel_scale_matrix))  # pc^3 / voxel or pc^2/pixel
+            raise ValueError("Structures has no WCS attached")
+        volpc_pixel = np.prod(np.abs(np.diag(self.wcs.pixel_scale_matrix)))  # pc^3 / voxel or pc^2/pixel
         return self.npix * volpc_pixel
 
     ###########################################################################
@@ -536,7 +536,9 @@ class Structures(object):
 
     def _set_descendants(self, s = None):
         """
-        Set descendants as a flattened list of all child leaves and branches.
+        Set descendants as a flattened list of the structure itself plus
+        all of its child leaves and branches. The list is self-inclusive
+        — `s` appears as the first element of its own descendants.
 
         Parameters:
         -----------
@@ -573,32 +575,35 @@ class Structures(object):
             self.structures[s]._descendants = []
 
 
-    def id_mask(self,s_include=None):
+    def id_mask(self, s_include=None):
         '''
-        Create a masked  structure ID map.
+        Return a struc_map-style array carrying only the IDs of the selected
+        structures, with NaN elsewhere. Equivalent to
+        ``get_struc_map_mask(s_include, use_descendants=False)`` but kept as a
+        flatter, descendants-free entry point.
 
-        Parameters:
-        -----------
-        s_include : list
-            List of structure IDs to include.
+        Parameters
+        ----------
+        s_include : list, optional
+            Structure IDs to keep. Defaults to all.
 
-        Returns:
-        --------
+        Returns
+        -------
         mask : np.ndarray
-            Masked structure ID map.
-
+            Image-shaped array. Pixels belonging to a selected structure
+            carry that structure's ID; all other pixels are NaN.
         '''
+        if self.struc_map is None:
+            raise RuntimeError(
+                "hierarchy has not been computed; call compute_segment_hierarchy first"
+            )
         if s_include is None:
-            s_include = self.structure_keys
-        if (len(s_include) == 1 )& (type(s_include) != list):
+            s_include = list(self.structure_keys)
+        else:
             s_include = list(s_include)
+        in_set = np.isin(self.struc_map, s_include)
         mask = np.full(self._imgshape, np.nan)
-        for s in s_include:
-            struc = self.structures[s]
-            struc.load_indices(sdir = self.sdir)
-            struc_multi_inds = np.unravel_index(struc.indices, self._imgshape)
-            mask[struc_multi_inds] = int(s)
-            struc._clear_indices()
+        mask[in_set] = self.struc_map[in_set]
         return mask
 
     ########################################################################
@@ -625,9 +630,12 @@ class Structures(object):
         import pandas as pd
         from astropy.wcs import WCS
 
-        hdul = fits.open(f'{odir}{fname}_perch_seg.fits')
-        parent_table = Table(hdul[2].data)
-        parent_df = parent_table.to_pandas()
+        with fits.open(f'{odir}{fname}_perch_seg.fits') as hdul:
+            parent_table = Table(hdul[2].data)
+            parent_df = parent_table.to_pandas()
+            struc_map = np.asarray(hdul[0].data).copy()
+            level_map = np.asarray(hdul[1].data).copy()
+            wcs = WCS(hdul[0].header)
 
         output_cols = ['Htype', 'Birth', 'Death', 'Birthpix_0', 'Birthpix_1', 'Birthpix_2', 'Deathpix_0', 'Deathpix_1', 'Deathpix_2', 'ID_PH']
         ignore_cols = ['Parent_ID', 'Npix', 'Level']
@@ -639,7 +647,7 @@ class Structures(object):
         # mirror cripser output
         gen_array = parent_df[output_cols].values
         # create structures object
-        self = Structures(structures=gen_array, img_shape = np.shape(hdul[0].data), wcs=WCS(hdul[0].header), struc_map=hdul[0].data, level_map=hdul[1].data)
+        self = Structures(structures=gen_array, img_shape=struc_map.shape, wcs=wcs, struc_map=struc_map, level_map=level_map)
 
         self.df = parent_df
 
@@ -738,6 +746,23 @@ class Structures(object):
         clear_indices : bool
             Clear the pixel indices after computation (saves memory).
 
+        Examples
+        --------
+        Segment the H0 generators of a one-peak image and inspect the
+        resulting per-pixel structure map:
+
+        >>> import numpy as np
+        >>> from perch.ph import PH
+        >>> y, x = np.indices((8, 8))
+        >>> img = np.exp(-((y - 3)**2 + (x - 4)**2) / 2.0).astype(np.float32)
+        >>> ph = PH.compute_hom(data=img, verbose=False)
+        >>> h0 = ph.filter(dimension=0)
+        >>> h0.compute_segment_hierarchy(img_jnp=img, verbose=False, export=False)
+        >>> h0.struc_map.shape
+        (8, 8)
+        >>> h0.n_struc
+        1
+
         '''
 
         mask_s = np.full((self._imgshape),np.nan)
@@ -772,7 +797,12 @@ class Structures(object):
             return
 
         if len(np.unique(htype_arr)) > 1:
-            print('Warning: multiple homology groups detected.  Segmentation order may be incorrect!  Please segment each homology groups separately.')
+            warnings.warn(
+                "multiple homology groups detected; segmentation order may be "
+                "incorrect. Please segment each homology group separately.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         if htype_arr[0] == 0:
             seg_order = self.sort_death(s_include=s_include,invert=False) # ascend death
@@ -810,6 +840,7 @@ class Structures(object):
                 struc._calculate_centroid(img=img_np)
                 struc._calculate_pix_values(img=img_np)
                 struc._calculate_bbox()
+                struc._calculate_geom_cent()
 
             if clear_indices:
                 struc._clear_indices()
@@ -933,27 +964,34 @@ class Structures(object):
                                   'Npix': self.npix, 'Parent_ID': np.array(self.parent, dtype='float32'),
                                   'Level': np.array(self.level, dtype='float32')})
 
-        if self.sum_val  is not None:
-            parent_df['sum_val'] = self.sum_val
-            parent_df['min_val'] = self.min_val
-            parent_df['max_val'] = self.max_val
-            parent_df['median_val'] = self.median_val
-        if self.centroid is not None:
-            parent_df['centroid_0'] = self.centroid[:, 0]
-            parent_df['centroid_1'] = self.centroid[:, 1]
+        # Supplementary properties: include only if at least one structure
+        # already has them cached. Read the underlying `_attr` directly so
+        # that probing for "is this cached?" never accidentally triggers
+        # the image-dependent computation in the public property.
+        structures = self.all_structures
+        if structures and structures[0]._sum_val is not None:
+            parent_df['sum_val'] = [s._sum_val for s in structures]
+            parent_df['min_val'] = [s._min_val for s in structures]
+            parent_df['max_val'] = [s._max_val for s in structures]
+            parent_df['median_val'] = [s._median_val for s in structures]
+        if structures and structures[0]._centroid is not None:
+            centroids = np.array([s._centroid for s in structures])
+            parent_df['centroid_0'] = centroids[:, 0]
+            parent_df['centroid_1'] = centroids[:, 1]
             if self._ndim == 3:
-                parent_df['centroid_2'] = self.centroid[:, 2]
+                parent_df['centroid_2'] = centroids[:, 2]
             if self._ndim == 2:
                 parent_df['centroid_2'] = np.nan
-        if self.bbox is not None:
-            parent_df['bbox_min_0'] = self.bbox[:, 0, 0]
-            parent_df['bbox_min_1'] = self.bbox[:, 0, 1]
+        if structures and structures[0]._bbox is not None:
+            bboxes = np.array([s._bbox for s in structures])
+            parent_df['bbox_min_0'] = bboxes[:, 0, 0]
+            parent_df['bbox_min_1'] = bboxes[:, 0, 1]
             if self._ndim == 3:
-                parent_df['bbox_min_2'] = self.bbox[:, 0, 2]
-            parent_df['bbox_max_0'] = self.bbox[:, 1, 0]
-            parent_df['bbox_max_1'] = self.bbox[:, 1, 1]
+                parent_df['bbox_min_2'] = bboxes[:, 0, 2]
+            parent_df['bbox_max_0'] = bboxes[:, 1, 0]
+            parent_df['bbox_max_1'] = bboxes[:, 1, 1]
             if self._ndim == 3:
-                parent_df['bbox_max_2'] = self.bbox[:, 1, 2]
+                parent_df['bbox_max_2'] = bboxes[:, 1, 2]
 
         self.df = parent_df
 
@@ -999,8 +1037,9 @@ class Structures(object):
             Output directory.
         '''
         if self.struc_map is None:
-            print('Error: must compute or load hierarchy first!')
-            return
+            raise RuntimeError(
+                "hierarchy has not been computed; call compute_segment_hierarchy first"
+            )
 
         from astropy.io import fits
         if self.wcs is not None:
@@ -1024,8 +1063,9 @@ class Structures(object):
 
         '''
         if self.level_map is None:
-            print('Error: must compute or load hierarchy first!')
-            return
+            raise RuntimeError(
+                "hierarchy has not been computed; call compute_segment_hierarchy first"
+            )
 
         from astropy.io import fits
         if self.wcs is not None:

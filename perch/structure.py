@@ -325,6 +325,9 @@ class Structure(object):
     def descendants(self):
         '''
         Descendants of the structure in the hierarchy.
+
+        The list is self-inclusive — a structure appears in its own
+        ``descendants`` along with all of its child branches and leaves.
         '''
         return self._descendants
 
@@ -386,8 +389,9 @@ class Structure(object):
             comp_use = labels_out[self.deathpix[0],self.deathpix[1]]
 
         if self.htype == 1 and self._ndim == 3:
-            print('Segmentation for 3D H_1 not supported.')
-            return
+            raise NotImplementedError(
+                "Segmentation for 3D H_1 structures is not supported."
+            )
 
         if (self.htype == 2) and (self._ndim == 3):
             filt_img = np.array(filter_sub_jit(img, self.birth))
@@ -411,8 +415,9 @@ class Structure(object):
         Get mask of the structure.
         '''
         if self.indices is None:
-            print('Error: must compute or load segmentation first!')
-            return
+            raise RuntimeError(
+                "segmentation has not been computed; call compute_segment first"
+            )
         mask = np.zeros(self._imgshape, dtype=bool)
         mask[self.indices] = True
         self._mask = mask
@@ -428,11 +433,11 @@ class Structure(object):
             Image to get values from.
         '''
         if img is None:
-            print('Error: must input image!')
-            return
+            raise ValueError("img must be provided")
         if self.indices is None:
-            print('Error: must compute or load segmentation first!')
-            return
+            raise RuntimeError(
+                "segmentation has not been computed; call compute_segment first"
+            )
         return img[self.indices]
 
     def _calculate_pix_values(self, img =None):
@@ -460,11 +465,11 @@ class Structure(object):
     def _calculate_centroid(self, img=None):
         from skimage import measure
         if img is None:
-            print('Error: must input image!')
-            return
+            raise ValueError("img must be provided")
         if self.indices is None:
-            print('Error: must compute or load segmentation first!')
-            return
+            raise RuntimeError(
+                "segmentation has not been computed; call compute_segment first"
+            )
         if self._mask is None:
             self.get_mask()
         centr = measure.centroid(np.where(self._mask, img, 0))
@@ -482,8 +487,7 @@ class Structure(object):
 
         '''
         if img is None:
-            print('Error: must input image!')
-            return
+            raise ValueError("img must be provided")
         from scipy import ndimage
         if self.htype == 0:
             wcent = ndimage.center_of_mass(np.where(self.get_mask(), img, 0))
@@ -502,37 +506,41 @@ class Structure(object):
 
         '''
         if img is None:
-            print('Error: must input image!')
-            return
+            raise ValueError("img must be provided")
+        values = self.get_values(img=img)
         if self.htype == 0:
-            extr = self.indices[np.argmax(self.get_values(img=img))]
+            idx = int(np.argmax(values))
         if self.htype == 2:
-            extr = self.indices[np.argmin(self.get_values(img=img))]
-        self._extreme_pix = extr
+            idx = int(np.argmin(values))
+        self._extreme_pix = tuple(int(c[idx]) for c in self.indices)
 
     def _calculate_bbox(self):
         '''
         Calculate the bounding box of the structure in pixel coordinates.
         '''
         if self.indices is None:
-            print('Error: must compute or load segmentation first!')
-            return
+            raise RuntimeError(
+                "segmentation has not been computed; call compute_segment first"
+            )
         mins = np.min(self.indices, axis=1)
         maxs = np.max(self.indices, axis=1)
         self._bbox = np.array([mins, maxs])
         self._bbox_min = mins
         self._bbox_max = maxs
 
-    def _calculate_surface_area(self, save_points=True,sdir='./'):
+    def _calculate_surface_area(self, save_points=False, sdir='./'):
         '''
         Calculate the surface area of the structure using marching cubes.
 
         Parameters
         ----------
         save_points : bool
-            Save the surface points.
+            If True, write the marching-cubes vertices to
+            ``<sdir>/struc_<id_ph>_verts.txt``. Default is False so the
+            property accessor has no file-system side effects.
         sdir : str
-            Directory to save surface points.
+            Directory to save surface points (used only when
+            ``save_points=True``).
 
         '''
         from skimage.measure import marching_cubes, mesh_surface_area

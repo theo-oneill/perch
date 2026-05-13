@@ -108,6 +108,19 @@ class PH(object):
         --------
         perch.PH
             Persistent homology object.
+
+        Examples
+        --------
+        Compute persistent homology of a small 2D image with a single
+        Gaussian peak:
+
+        >>> import numpy as np
+        >>> from perch.ph import PH
+        >>> y, x = np.indices((8, 8))
+        >>> img = np.exp(-((y - 3)**2 + (x - 4)**2) / 2.0).astype(np.float32)
+        >>> ph = PH.compute_hom(data=img, verbose=False)
+        >>> ph.generators.shape
+        (1, 10)
         '''
 
         # create PH object
@@ -291,6 +304,20 @@ class PH(object):
         --------
         perch.Structures
             Filtered structures.
+
+        Examples
+        --------
+        Keep only the H0 generators from a precomputed persistent-homology
+        result:
+
+        >>> import numpy as np
+        >>> from perch.ph import PH
+        >>> y, x = np.indices((8, 8))
+        >>> img = np.exp(-((y - 3)**2 + (x - 4)**2) / 2.0).astype(np.float32)
+        >>> ph = PH.compute_hom(data=img, verbose=False)
+        >>> h0 = ph.filter(dimension=0)
+        >>> h0.n_struc
+        1
 
         '''
 

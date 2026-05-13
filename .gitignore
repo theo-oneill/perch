@@ -3,6 +3,9 @@
 # setuptools-scm generated version:
 *version.py
 
+# diagnostic plots produced by `pytest --perch-plots`
+/test_plots/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
