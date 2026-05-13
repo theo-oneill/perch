@@ -47,6 +47,19 @@ intersphinx_disabled_domains = ['std']
 
 templates_path = ['_templates']
 
+
+def _skip_properties(app, what, name, obj, skip, options):
+    # Hide the @property "attributes" layer from autosummary-generated class
+    # pages; users mainly want the method-level API.
+    if isinstance(obj, property):
+        return True
+    return skip
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', _skip_properties)
+
+
 # -- Options for HTML output
 
 html_theme = 'sphinx_rtd_theme'

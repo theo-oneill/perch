@@ -5,7 +5,7 @@ perch builds upon the work of several excellent open-source projects:
 
 **Cubical Ripser (cripser)**
 
-perch uses `cripser <https://github.com/shizuo-kaji/CubicalRipser_3dim>`_ for fast persistent homology computation on cubical complexes. We gratefully acknowledge the developers of Cubical Ripser for creating this efficient implementation that makes perch's analysis possible.
+perch uses `cripser <https://github.com/shizuo-kaji/CubicalRipser_3dim>`_ for fast persistent homology computation on cubical complexes. We gratefully acknowledge the developers of Cubical Ripser for creating this efficient implementation that makes perch's analysis possible. If you use perch in published work, please also cite the Cubical Ripser paper: Kaji, S., Sudo, T., & Ahara, K. (2020), *Cubical Ripser: Software for computing persistent homology of image and volume data* (`arXiv:2005.12692 <https://arxiv.org/abs/2005.12692>`_).
 
 **Connected Components 3D (cc3d)**
 
