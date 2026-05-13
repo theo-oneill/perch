@@ -71,7 +71,7 @@ As the threshold sweeps from high to low values, structures appear and disappear
 
 .. math::
 
-   \text{persistence} = |\  \text{death} - \text{birth} \ |
+   \text{persistence} = |\  \text{birth} - \text{death} \ |
 
 **High persistence** = robust feature existing across a wide range of thresholds. **Low persistence** = likely noise or minor fluctuation.
 
