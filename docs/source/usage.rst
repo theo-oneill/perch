@@ -38,6 +38,12 @@ Perch requires the following external libraries for the PH computation and struc
 - ``cripser``: Fast C++ library (cubical ripser) for PH computation
 - ``cc3d`` (connected-components-3d): Connected components for structure segmentation
 
+.. note::
+
+   ``cripser`` is currently pinned to ``>=0.0.16,<=0.0.24``. Newer releases have
+   not yet been validated against perch; the upper bound will be relaxed once
+   compatibility is confirmed.
+
 Optional Dependencies
 ~~~~~~~~~~~~~~~~~~~~~
 

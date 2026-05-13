@@ -94,7 +94,15 @@ This approach identifies structures that stand out significantly above the local
 Combining Multiple Filters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can combine multiple filtering criteria for fine-grained selection:
+Most real workflows combine several filtering criteria, since no single cut
+captures everything you want. A typical filter picks a homology ``dimension``
+(which kind of structure to keep), applies a persistence cut (``min_life``) to
+suppress noise, optionally adds bounds on the data values themselves
+(``min_birth`` / ``min_death``) to restrict to physically meaningful intensity
+ranges, and may add a normalized-persistence cut (``min_life_norm_birth`` /
+``min_life_norm_death``) when contrast varies across the field. ``filter``
+applies the cuts conjunctively, so any structure that fails any one of them is
+dropped.
 
 .. code-block:: python
 
@@ -106,10 +114,35 @@ You can combine multiple filtering criteria for fine-grained selection:
        min_life_norm_birth=0.1  # Minimum normalized persistence
    )
 
+Parameter reference:
+
+- ``dimension``: homology group to keep (``0`` for peaks/H₀, ``1`` for loops/H₁,
+  ``2`` for voids/H₂).
+- ``min_life`` / ``max_life``: persistence (lifetime) bounds. This is the most
+  common knob — everything below ``min_life`` is treated as noise.
+- ``min_birth`` / ``max_birth``: bounds on the birth value. For H₀ this is the
+  brightest pixel inside the structure; useful for excluding faint detections
+  or capping above a saturation level.
+- ``min_death`` / ``max_death``: bounds on the death value (the threshold at
+  which the structure merges into a larger one).
+- ``min_life_norm_birth`` / ``min_life_norm_death``: persistence normalized by
+  birth (resp. death). Useful when absolute persistence varies across the field
+  but the relative contrast of a feature is the more meaningful significance
+  measure.
+- ``mask``: when supplied, all other cuts are ignored and only the given
+  boolean / index mask is applied to the generators — handy for plugging in a
+  custom selection (e.g. the noise-normalized persistence above).
+
 Alexander Duality for Large Datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For very large 3D datasets (billions of voxels), computing H₂ directly can be slow. Alexander duality provides a mathematically equivalent but faster approach:
+For very large 3D datasets (billions of voxels), computing H₂ directly can be
+slow. `Alexander duality <https://en.wikipedia.org/wiki/Alexander_duality>`_
+tells us that the H₂ classes of a superlevel-set filtration are in one-to-one
+correspondence with the H₀ classes of the same filtration on the *negated*
+data — intuitively, voids in the original become peaks once the sign is
+flipped. H₀ is dramatically cheaper to compute than H₂, so for void-finding at
+scale we recommend the inverted-data route:
 
 .. code-block:: python
 
