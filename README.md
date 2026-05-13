@@ -1,6 +1,11 @@
 # perch
 ### Persistent Homology for Images &amp; Cubes
 
+[![tests](https://github.com/theo-oneill/perch/actions/workflows/main.yml/badge.svg)](https://github.com/theo-oneill/perch/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/theo-oneill/perch/branch/main/graph/badge.svg)](https://codecov.io/gh/theo-oneill/perch)
+[![docs](https://readthedocs.org/projects/perch/badge/?version=latest)](https://perch.readthedocs.org)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
+
 perch is an in-development python package for applying the topological technique of persistent homology to images & cubes.  Persistent Homology identifies "holes" of different dimensions in data.  In the perch framework, this enables the identification, segmentation, and hierarchical mapping of multi-scale structures in astronomical data.
 
 See examples folder for minimal examples of running perch on 2D images and 3D volumes.  
