@@ -18,8 +18,10 @@ jobs:
     with:
       coverage: codecov
       envs: |
+        - linux: codestyle
         - linux: build_docs
         - linux: py310-test
+        - linux: py310-test-oldestdeps
         - linux: py311-test
         - linux: py311-test-dev
         - linux: py312-test

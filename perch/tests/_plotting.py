@@ -9,7 +9,6 @@ The module is prefixed with an underscore so pytest does not collect it.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np

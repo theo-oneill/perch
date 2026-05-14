@@ -10,7 +10,6 @@ suite. See TODO.md for the fix plan.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from astropy.coordinates import SkyCoord
 

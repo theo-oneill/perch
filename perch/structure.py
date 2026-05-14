@@ -1,7 +1,6 @@
 
 import numpy as np
 import cc3d
-import os
 import jax.numpy as jnp
 from perch.utils import filter_super_jit, filter_sub_jit
 

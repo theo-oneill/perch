@@ -1,0 +1,21 @@
+# Codecov configuration. See https://docs.codecov.com/docs/codecov-yaml.
+
+coverage:
+  status:
+    project:
+      default:
+        # Overall coverage target for the project. Currently ~91%; the 2pp
+        # threshold lets routine PRs land without coverage churn but flags
+        # a real regression.
+        target: 88%
+        threshold: 2%
+    patch:
+      default:
+        # New code introduced by a PR should be reasonably covered, but
+        # docs-only or pure-refactor PRs shouldn't fail the gate.
+        target: 80%
+        threshold: 5%
+
+comment:
+  layout: "diff, files"
+  require_changes: true   # Codecov posts a PR comment only if coverage changed

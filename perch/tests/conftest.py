@@ -11,7 +11,6 @@ os.environ.setdefault("JAX_PLATFORMS", "cpu")
 # deprecation warning that the strict filterwarnings would promote to error).
 os.environ.setdefault("MPLBACKEND", "Agg")
 
-import numpy as np
 import pytest
 
 

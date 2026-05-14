@@ -14,7 +14,6 @@ strip should be revisited.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from perch.ph import PH
 

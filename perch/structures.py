@@ -1,8 +1,8 @@
 import warnings
 
-import numpy  as np
+import numpy as np
 from tqdm import tqdm
-from perch.structure import *
+from perch.structure import Structure
 import jax.numpy as jnp
 
 
@@ -627,7 +627,6 @@ class Structures(object):
 
         from astropy.io import fits
         from astropy.table import Table
-        import pandas as pd
         from astropy.wcs import WCS
 
         with fits.open(f'{odir}{fname}_perch_seg.fits') as hdul:
@@ -1009,7 +1008,6 @@ class Structures(object):
         '''
         from astropy.io import fits
         from astropy.table import Table
-        import pandas as pd
 
         if self.wcs is not None:
             head = self.wcs.to_header()
