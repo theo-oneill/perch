@@ -54,6 +54,13 @@ requires = [
             "setuptools_scm"
            ]
 
+# uv-specific: several connected-components-3d sdists (e.g. 3.1.x) ship without
+# declaring numpy as a build-system dep, so uv's isolated build env can't import
+# numpy at `python setup.py` time. Declaring it here lets uv install cc3d from
+# sdist when no wheel is available (matters mostly for the oldestdeps CI leg).
+[tool.uv.extra-build-dependencies]
+connected-components-3d = ["numpy", "setuptools"]
+
 #[build-system]
 #requires = ["flit_core >=3.2,<4"]
 #build-backend = "flit_core.buildapi"
