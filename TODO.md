@@ -1,5 +1,51 @@
 # perch — open design questions
 
+## Re-enable `oldestdeps` in CI when tox-uv resolver behaves
+
+**Status:** removed from `.github/workflows/main.yml` after multiple
+failed install attempts. The `tox.ini` `oldestdeps` factor itself is
+still defined and works locally with `tox -e py310-test-oldestdeps`
+on a host where the appropriate wheels are available.
+
+**What kept breaking:**
+
+Even after bumping ``numpy>=1.26`` and ``connected-components-3d>=3.10``
+to wheels-available floors, the GHA runner kept landing in a state
+where uv's isolated build env was building numpy from sdist (despite
+manylinux wheels existing on PyPI) and the source build failed against
+the runner's modern CPython (``_Py_HashDouble`` signature mismatch).
+Looks like a `tox-uv` + `--resolution lowest-direct` + GHA-runner-glibc
+interaction; not a real packaging bug in perch.
+
+**Why it still matters:**
+
+The whole point of an oldestdeps leg is to honestly test the declared
+minimum-version dependencies. Without it in CI, a user installing
+perch into an environment that pins to our declared bounds (conda-
+forge solver, shared HPC modules, certain pipeline envs) could hit
+silent breakage we never notice.
+
+**Options to revisit:**
+
+* **(a)** Wait for tox-uv to fix its wheel-preference behavior; re-add
+  the leg as-is when uv prefers wheels over sdist in lowest-direct
+  resolution.
+* **(b)** Switch to plain `pip`-based tox envs (no `tox-uv`) for the
+  oldestdeps leg only. uv elsewhere stays fast; oldestdeps uses pip
+  which has more predictable wheel selection.
+* **(c)** Force binary-only install: add `uv_install_args = --only-binary :all:`
+  to the `oldestdeps` testenv. May not work if any dep doesn't ship
+  wheels for our floor versions.
+* **(d)** Use `mamba`/`conda` for the oldestdeps env. Heavyweight.
+
+**Action:** revisit in a few months once uv/tox-uv tooling matures,
+or pick one of (b)/(c) if oldestdeps coverage becomes a publication
+blocker (e.g., JOSS reviewers ask about it).
+
+---
+
+
+
 
 
 A short, living list of decisions to revisit. Add items as you find them;
