@@ -158,6 +158,10 @@ class PH(object):
                 "pad_essential requires data to have at least one finite "
                 "voxel; got an all-NaN/inf input."
             )
+        # Default pad value lives here, beside its docstring, and reuses the
+        # single nanmax above rather than recomputing it in the caller.
+        if pad_value is None:
+            pad_value = 10.0 * target_birth
 
         # Identify the essential row in the original run: among rows with
         # birth==target_birth, the one with the smallest death. With the
@@ -203,6 +207,9 @@ class PH(object):
         # cripser always emits 9 columns regardless of dimensionality:
         # [dim, birth, death, bx, by, bz, dx, dy, dz]. The death pixel
         # therefore lives at the fixed columns 6:6+n_dim, NOT at 3+n_dim.
+        # The pixel_offset/clip below only does real work for 'bbox' (a
+        # 1-voxel shell shifts coords by 1); 'dilate' keeps the original
+        # shape and frame, so pixel_offset is all-zero and clip is a no-op.
         shape = np.array(self.data.shape)
         h_all[essential_idx, 2] = pad_row[2]
         death_pix_padded = pad_row[6:6 + self.n_dim].astype(int)
@@ -329,11 +336,9 @@ class PH(object):
         h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
 
         # patch the originally-essential H_0 row with the padded run's death
+        # (pad_value=None lets the helper apply its 10*nanmax default)
         if pad_mode:
-            resolved_pad_value = (pad_value if pad_value is not None
-                                  else 10.0 * np.nanmax(self.data))
-            self._pad_and_patch_essential(h_all, pad_mode,
-                                          resolved_pad_value, verbose,
+            self._pad_and_patch_essential(h_all, pad_mode, pad_value, verbose,
                                           embedded=embedded)
 
         # store generators

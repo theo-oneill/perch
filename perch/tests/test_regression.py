@@ -25,7 +25,7 @@ REF_DIR = Path(__file__).resolve().parent / "data"
 
 # Threshold below which a death value is treated as the essential-class
 # sentinel rather than a real number.
-_ESSENTIAL_THRESHOLD = -1e30
+from perch.tests._fixtures import ESSENTIAL_SENTINEL as _ESSENTIAL_THRESHOLD
 
 # Columns of the 10-column generator table that are well-defined even for
 # the essential class. Skips columns 2 (sentinel death) and 6–8 (deathpix,

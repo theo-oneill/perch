@@ -12,6 +12,7 @@ import pytest
 
 from perch.ph import PH
 from perch.structures import Structures
+from perch.tests._fixtures import ESSENTIAL_SENTINEL
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +237,7 @@ def test_pipeline_handles_explicit_big_endian(toy_2d_two_peaks):
 
     # Structure.compute_segment on big-endian.
     h0 = ph_be.generators[(ph_be.generators[:, 0] == 0)
-                          & (ph_be.generators[:, 2] > -1e30)][0]
+                          & (ph_be.generators[:, 2] > ESSENTIAL_SENTINEL)][0]
     struc = ph_be.strucs.structures[int(h0[9])]
     struc.compute_segment(img_be)
     assert struc.npix > 0

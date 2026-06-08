@@ -12,6 +12,13 @@ from __future__ import annotations
 import numpy as np
 
 
+# Single source of truth for the essential-class death sentinel. cripser writes
+# -DBL_MAX (~ -1.8e308) for a class that never dies; any death below this
+# threshold is treated as "essential / infinite lifetime". Imported by the
+# test suite and the plotting helpers so the constant is defined exactly once.
+ESSENTIAL_SENTINEL = -1e30
+
+
 def gaussian_field(shape, peaks_amps_sigmas, dtype=np.float32):
     """Sum of isotropic Gaussians on a grid."""
     grids = np.indices(shape)

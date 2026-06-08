@@ -36,7 +36,7 @@ def _attach_marker_legend(fig, handles):
 
 # cripser writes -DBL_MAX (~ -1.8e308) for the essential class. Anything
 # more negative than this sentinel is treated as "infinite lifetime".
-_ESSENTIAL_SENTINEL = -1e30
+from perch.tests._fixtures import ESSENTIAL_SENTINEL as _ESSENTIAL_SENTINEL
 
 # Where to draw essential generators on the persistence diagram's death axis
 # (purely cosmetic — the real lifetime is infinite).

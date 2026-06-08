@@ -24,9 +24,7 @@ import numpy as np
 import pytest
 
 from perch.ph import PH
-
-
-_ESSENTIAL_THRESHOLD = -1e30
+from perch.tests._fixtures import ESSENTIAL_SENTINEL as _ESSENTIAL_THRESHOLD
 
 
 def _essential_row(gens, target_birth):
@@ -239,14 +237,29 @@ def test_essential_death_pixel_value_matches_death_bbox(toy_2d_two_peaks):
 
 def test_essential_death_pixel_in_bounds_dilate(toy_3d_nan_halo):
     """Death pixel of the patched essential row, in dilate mode, lands at a
-    valid voxel index of the (un-padded) data array. We don't assert which
-    voxel — cripser reports the merge-event location in the existing
-    component, not necessarily the dilation-shell pixel."""
+    valid voxel index of the (un-padded) data array."""
     img, _ = toy_3d_nan_halo
     ph = PH.compute_hom(data=img, verbose=False)
     row = _essential_row(ph.generators, np.nanmax(img))
     dp = row[6:6 + ph.n_dim]
     assert (dp >= 0).all() and (dp < np.array(img.shape)).all()
+
+
+def test_essential_death_pixel_value_matches_death_dilate(toy_3d_nan_halo):
+    """Dilate mode adds no shell — ``_build_padded_data`` returns a zero
+    pixel offset and the array keeps its original shape — so there is no
+    coordinate translation and the clip is a no-op. The patched death pixel
+    therefore indexes the merge voxel directly, and (the merge lands on a
+    finite voxel, not a filled dilation-edge one) ``img`` there equals the
+    recorded death. This pins the dilate death-pixel columns; the in-bounds
+    check above passes even on a wrong voxel (clip), this does not."""
+    img, _ = toy_3d_nan_halo
+    ph = PH.compute_hom(data=img, verbose=False)
+    assert ph.pad_essential == 'dilate'
+    row = _essential_row(ph.generators, np.nanmax(img))
+    dp = tuple(row[6:6 + ph.n_dim].astype(int))
+    assert np.isfinite(img[dp])
+    assert np.isclose(img[dp], row[2], rtol=1e-6)
 
 
 # ---------------------------------------------------------------------------
@@ -294,3 +307,82 @@ def test_buff_pix_emits_deprecation_warning(toy_2d_two_peaks):
         )
     msgs = [str(x.message) for x in w if issubclass(x.category, DeprecationWarning)]
     assert any("buff_pix" in m and "pad_essential" in m for m in msgs)
+
+
+# ---------------------------------------------------------------------------
+# New-default hierarchy / segmentation behavior (the headline change)
+# ---------------------------------------------------------------------------
+
+def _segmented_h0(img, pad):
+    h0 = PH.compute_hom(data=img, verbose=False,
+                        pad_essential=pad).filter(dimension=0)
+    h0.compute_segment_hierarchy(img_jnp=img, verbose=False, export=False)
+    return h0
+
+
+def test_new_default_essential_segments_to_subimage_2d(toy_2d_two_peaks):
+    """Under pad_essential=False the essential H_0 class keeps the -DBL_MAX
+    sentinel death, so it segments to the whole image and becomes the trunk of
+    a depth-2 hierarchy. Under the new default ('auto') it gets a finite death,
+    segments to a strict sub-image, and sits as a sibling (depth-1, no
+    nesting). Generator counts are unchanged either way. Locks in the headline
+    behavior change, which is otherwise only exercised by legacy fixtures."""
+    img, _ = toy_2d_two_peaks
+    legacy = _segmented_h0(img, False)
+    auto = _segmented_h0(img, 'auto')
+
+    # Same number of structures; only the topology changes.
+    assert legacy.n_struc == auto.n_struc == 2
+
+    # legacy: nested hierarchy (trunk + child); trunk covers the whole image.
+    assert np.nanmax(legacy.level_map) == 2
+    assert np.isfinite(legacy.struc_map).sum() == img.size
+
+    # auto: two siblings, no nesting, segmentation no longer fills the frame.
+    assert np.nanmax(auto.level_map) == 1
+    assert np.isfinite(auto.struc_map).sum() < img.size
+
+
+# ---------------------------------------------------------------------------
+# load_from round-trip under the new default (finite essential death)
+# ---------------------------------------------------------------------------
+
+def _max_birth_h0_row(gens):
+    """The H_0 generator with the largest birth — the essential class. Robust
+    to the precision loss of a text export/reload (no exact birth match)."""
+    h0 = gens[gens[:, 0] == 0]
+    return h0[np.argmax(h0[:, 1])]
+
+
+def test_load_from_keeps_essential_under_new_default(ph_2d_two_peaks,
+                                                     toy_2d_two_peaks, tmp_path):
+    """With a finite essential death (the new default), load_from no longer
+    strips the essential row — every exported generator round-trips back.
+    Contrast test_io.test_export_load_roundtrip_strips_essential, which pins
+    the legacy strip via the *_legacy fixture."""
+    img, _ = toy_2d_two_peaks
+    odir = str(tmp_path) + "/"
+    ph_2d_two_peaks.export_generators("gens.txt", odir=odir)
+    loaded = PH.load_from("gens.txt", odir=odir, data=img)
+
+    assert loaded.generators.shape[0] == ph_2d_two_peaks.generators.shape[0]
+    row = _max_birth_h0_row(loaded.generators)
+    assert np.isfinite(row[2]) and row[2] > _ESSENTIAL_THRESHOLD
+
+
+def test_load_from_conv_fac_no_overflow_under_new_default(ph_2d_two_peaks,
+                                                          toy_2d_two_peaks,
+                                                          tmp_path):
+    """The legacy -DBL_MAX essential death overflows when multiplied by
+    conv_fac (test_io documents that RuntimeWarning under the *_legacy
+    fixture); the finite default death scales cleanly with no overflow."""
+    img, _ = toy_2d_two_peaks
+    odir = str(tmp_path) + "/"
+    ph_2d_two_peaks.export_generators("gens.txt", odir=odir)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        loaded = PH.load_from("gens.txt", odir=odir, data=img, conv_fac=2.0)
+    overflow = [str(x.message) for x in w
+                if "overflow" in str(x.message).lower()]
+    assert not overflow, f"unexpected overflow warning(s): {overflow}"
+    assert np.isfinite(_max_birth_h0_row(loaded.generators)[2])

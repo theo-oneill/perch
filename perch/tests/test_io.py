@@ -16,9 +16,7 @@ from __future__ import annotations
 import numpy as np
 
 from perch.ph import PH
-
-
-_ESSENTIAL_THRESHOLD = -1e30
+from perch.tests._fixtures import ESSENTIAL_SENTINEL as _ESSENTIAL_THRESHOLD
 
 
 def _odir(tmp_path):

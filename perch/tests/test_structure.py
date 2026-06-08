@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from perch.structure import Structure
+from perch.tests._fixtures import ESSENTIAL_SENTINEL
 
 
 def _make_structure(pi, img_shape=(8, 8), id=0, id_ph=0):
@@ -164,7 +165,7 @@ def test_compute_segment_2d_h0_on_lower_peak(ph_2d_two_peaks_legacy, toy_2d_two_
     (under the new default both H_0 generators have finite deaths)."""
     img, _ = toy_2d_two_peaks
     gens = ph_2d_two_peaks_legacy.generators
-    h0_finite = gens[(gens[:, 0] == 0) & (gens[:, 2] > -1e30)]
+    h0_finite = gens[(gens[:, 0] == 0) & (gens[:, 2] > ESSENTIAL_SENTINEL)]
     assert h0_finite.shape[0] == 1
     h_id = int(h0_finite[0, 9])
     struc = ph_2d_two_peaks_legacy.strucs.structures[h_id]
