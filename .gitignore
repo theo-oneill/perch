@@ -6,6 +6,12 @@
 # diagnostic plots produced by `pytest --perch-plots`
 /test_plots/
 
+# local Claude Code config / memory (never commit)
+.claude/
+
+# stray run outputs
+run_perch_seg.fits
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
