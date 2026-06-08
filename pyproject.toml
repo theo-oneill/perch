@@ -92,7 +92,11 @@ filterwarnings = [
     "error::DeprecationWarning",
     "ignore:invalid escape sequence",
     # Triggered because Matplotlib uses deprecated PIL API
-    "ignore:'mode' parameter is deprecated"
+    "ignore:'mode' parameter is deprecated",
+    # scikit-image's marching_cubes sets an array's .shape, which numpy>=2.5
+    # deprecated. Out of our control (perch never sets .shape itself); only
+    # fires on the dev-dependency CI leg. Drop once scikit-image ships a fix.
+    "ignore:Setting the shape on a NumPy array has been deprecated:DeprecationWarning",
 ]
 
 
