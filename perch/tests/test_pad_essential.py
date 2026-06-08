@@ -386,3 +386,51 @@ def test_load_from_conv_fac_no_overflow_under_new_default(ph_2d_two_peaks,
                 if "overflow" in str(x.message).lower()]
     assert not overflow, f"unexpected overflow warning(s): {overflow}"
     assert np.isfinite(_max_birth_h0_row(loaded.generators)[2])
+
+
+# ---------------------------------------------------------------------------
+# Boundary fallback: when the originally-essential voxel sits against the
+# padded edge it has no unique counterpart in the padded run, so the patch
+# can't read a finite death. Rather than abort the whole PH, warn and leave
+# that one row at its legacy -DBL_MAX sentinel. Regression: the PHANGS v3
+# F770W run crashed on 4/20 galaxies (boundary-touching bright source) before
+# this fallback was added.
+# ---------------------------------------------------------------------------
+
+def _corner_max_2d():
+    """All-finite image (-> bbox) with the global max at a corner, so it
+    touches the 1-voxel bbox shell."""
+    img = np.full((8, 8), 0.1, dtype=np.float64)
+    img[0, 0] = 1.0
+    return img
+
+
+def _edge_max_nan_halo_2d():
+    """NaN-haloed image (-> dilate) with the global max at the finite-region
+    corner, adjacent to the NaN voxels that become the dilation-edge pad."""
+    img = np.full((10, 10), 0.1, dtype=np.float64)
+    img[0, :] = img[-1, :] = img[:, 0] = img[:, -1] = np.nan
+    img[1, 1] = 1.0
+    return img
+
+
+@pytest.mark.parametrize("mode,builder", [
+    ('bbox', _corner_max_2d),
+    ('dilate', _edge_max_nan_halo_2d),
+])
+def test_boundary_essential_warns_and_keeps_sentinel(mode, builder):
+    img = builder()
+    with pytest.warns(UserWarning, match="padded-run counterpart"):
+        ph = PH.compute_hom(data=img, verbose=False)
+    assert ph.pad_essential == mode
+
+    # The PH completes (no crash) and, because the patch bailed before
+    # mutating anything, the full generator table is identical to the legacy
+    # (pad_essential=False) run.
+    legacy = PH.compute_hom(data=img, verbose=False, pad_essential=False)
+    np.testing.assert_array_equal(ph.generators, legacy.generators)
+
+    # The essential row keeps its -DBL_MAX sentinel; it stays genuinely
+    # essential rather than getting a (nonexistent) finite death.
+    row = _essential_row(ph.generators, np.nanmax(img))
+    assert row[2] < _ESSENTIAL_THRESHOLD

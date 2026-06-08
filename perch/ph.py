@@ -196,12 +196,23 @@ class PH(object):
         bp_match = np.all(cand_bps == essential_bp, axis=1)
         matched = cand_idx_all[bp_match]
         if matched.size != 1:
-            raise RuntimeError(
-                f"pad_essential: could not locate the padded-run counterpart "
-                f"of the original essential row (birthpix={tuple(essential_bp)}, "
-                f"matched={matched.size}). Pass `pad_essential=False` to fall "
-                "back to the legacy sentinel."
+            # The originally-essential birth pixel has no unique counterpart in
+            # the padded run. This happens when that pixel touches the padded
+            # boundary (e.g. a bright source against a NaN mask edge): once the
+            # higher-valued pad is added, the pixel is absorbed into the pad/
+            # boundary component at its own birth level and never initiates its
+            # own H_0 component, so there is nothing to read a finite death
+            # from. Rather than abort the whole PH, leave this single row at its
+            # legacy -DBL_MAX sentinel (it stays genuinely essential) and warn.
+            warnings.warn(
+                "pad_essential: could not locate a unique padded-run "
+                f"counterpart of the essential row (birthpix="
+                f"{tuple(essential_bp)}, matched={matched.size}); leaving its "
+                "legacy -DBL_MAX sentinel death in place. This typically means "
+                "the global-extremum voxel touches the padded boundary.",
+                stacklevel=2,
             )
+            return
         pad_row = ph_pad[matched[0]]
 
         # cripser always emits 9 columns regardless of dimensionality:
@@ -400,17 +411,15 @@ class PH(object):
         self.max_Hi = max_Hi
         self.noise = noise
 
-        # load generators
+        # load generators faithfully -- return exactly what is in the file so a
+        # save -> load round trip is the identity and matches compute_hom's
+        # in-memory generators. Cleaning (NaN-origin artifacts, the essential
+        # -DBL_MAX row) is a filtering decision left to the caller (e.g. via
+        # PH.filter / structure selection), not done silently at load time.
         gens = np.loadtxt(f'{odir}{fname}')
         # convert to physical units if necessary
         if conv_fac is not None:
             gens[:,1:3] *= conv_fac
-
-        # remove generators that originate from nans
-        base_struc = gens[:,2] < np.nanmin(self.data)
-        gens = gens[~base_struc]
-        base_struc = np.isnan(gens[:, 1])
-        gens = gens[~base_struc]
 
         # add homology id if not present
         if np.shape(gens)[1] == 9:
