@@ -26,15 +26,18 @@ def _odir(tmp_path):
     return str(tmp_path) + "/"
 
 
-def test_export_load_roundtrip_strips_essential(ph_2d_two_peaks, toy_2d_two_peaks, tmp_path):
-    """Exporting then loading drops the essential class but preserves finite rows."""
+def test_export_load_roundtrip_strips_essential(ph_2d_two_peaks_legacy, toy_2d_two_peaks, tmp_path):
+    """Exporting then loading drops the essential class but preserves finite
+    rows. Uses the legacy fixture so the -DBL_MAX sentinel triggers the
+    load_from strip; under the default ``pad_essential='auto'`` the
+    essential class has a finite death and is no longer stripped."""
     img, _ = toy_2d_two_peaks
-    ph_2d_two_peaks.export_generators("gens.txt", odir=_odir(tmp_path))
+    ph_2d_two_peaks_legacy.export_generators("gens.txt", odir=_odir(tmp_path))
 
     loaded = PH.load_from("gens.txt", odir=_odir(tmp_path), data=img)
 
-    essential = ph_2d_two_peaks.generators[:, 2] < _ESSENTIAL_THRESHOLD
-    expected_finite = ph_2d_two_peaks.generators[~essential]
+    essential = ph_2d_two_peaks_legacy.generators[:, 2] < _ESSENTIAL_THRESHOLD
+    expected_finite = ph_2d_two_peaks_legacy.generators[~essential]
 
     assert loaded.generators.shape[0] == expected_finite.shape[0]
     # Sort both by h_id (column 9) so row-by-row comparison is order-independent.
@@ -43,16 +46,18 @@ def test_export_load_roundtrip_strips_essential(ph_2d_two_peaks, toy_2d_two_peak
     np.testing.assert_allclose(a, e, rtol=1e-10)
 
 
-def test_load_from_conv_fac_scales_birth_death(ph_2d_two_peaks, toy_2d_two_peaks, tmp_path):
-    """`conv_fac` scales birth and death; other columns are untouched."""
+def test_load_from_conv_fac_scales_birth_death(ph_2d_two_peaks_legacy, toy_2d_two_peaks, tmp_path):
+    """`conv_fac` scales birth and death; other columns are untouched.
+    Uses the legacy fixture so the round-trip behaviour matches the one
+    encoded in the strip-essential test above."""
     img, _ = toy_2d_two_peaks
-    ph_2d_two_peaks.export_generators("gens.txt", odir=_odir(tmp_path))
+    ph_2d_two_peaks_legacy.export_generators("gens.txt", odir=_odir(tmp_path))
 
     loaded = PH.load_from("gens.txt", odir=_odir(tmp_path),
                           data=img, conv_fac=2.0)
 
-    essential = ph_2d_two_peaks.generators[:, 2] < _ESSENTIAL_THRESHOLD
-    expected = ph_2d_two_peaks.generators[~essential].copy()
+    essential = ph_2d_two_peaks_legacy.generators[:, 2] < _ESSENTIAL_THRESHOLD
+    expected = ph_2d_two_peaks_legacy.generators[~essential].copy()
     expected[:, 1:3] *= 2.0
 
     a = loaded.generators[np.argsort(loaded.generators[:, 9])]

@@ -30,7 +30,9 @@ def main():
         # Builders return either (img, peaks) or (img, center, radius);
         # only the first element matters here.
         img = builder()[0]
-        ph = PH.compute_hom(data=img, verbose=False)
+        # References are captured with pad_essential=False (the legacy
+        # sentinel essential class). See test_regression.py for context.
+        ph = PH.compute_hom(data=img, verbose=False, pad_essential=False)
         out = DATA_DIR / f"{name}_generators.npz"
         np.savez(out, generators=ph.generators)
         n_per_dim = {int(d): int((ph.generators[:, 0] == d).sum())

@@ -157,15 +157,17 @@ def test_pix_value_stats_match_hand_computed():
 # compute_segment against real PH fixtures
 # ---------------------------------------------------------------------------
 
-def test_compute_segment_2d_h0_on_lower_peak(ph_2d_two_peaks, toy_2d_two_peaks):
+def test_compute_segment_2d_h0_on_lower_peak(ph_2d_two_peaks_legacy, toy_2d_two_peaks):
     """The finite-death H0 generator segments to a blob containing its birthpix
-    and all of whose pixels exceed the death threshold."""
+    and all of whose pixels exceed the death threshold. Uses the legacy
+    fixture so 'finite-death' uniquely identifies the lower-peak generator
+    (under the new default both H_0 generators have finite deaths)."""
     img, _ = toy_2d_two_peaks
-    gens = ph_2d_two_peaks.generators
+    gens = ph_2d_two_peaks_legacy.generators
     h0_finite = gens[(gens[:, 0] == 0) & (gens[:, 2] > -1e30)]
     assert h0_finite.shape[0] == 1
     h_id = int(h0_finite[0, 9])
-    struc = ph_2d_two_peaks.strucs.structures[h_id]
+    struc = ph_2d_two_peaks_legacy.strucs.structures[h_id]
 
     struc.compute_segment(img)
     assert struc.indices is not None

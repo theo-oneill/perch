@@ -103,7 +103,7 @@ def test_plot_segmentation_2d_two_peaks(strucs_2d_two_peaks_h0,
     from perch.tests import _plotting
     img, _ = toy_2d_two_peaks
     _plotting.plot_segmentation_2d(
-        plot_dir / "2d_two_peaks_segmentation.png",
+        plot_dir / "2d_two_peaks_segmentation_legacy.png",
         img,
         strucs_2d_two_peaks_h0,
     )
@@ -156,7 +156,7 @@ def test_plot_segmentation_3d_two_peaks(strucs_3d_two_peaks_h0,
     from perch.tests import _plotting
     img, _ = toy_3d_two_peaks
     _plotting.plot_segmentation_3d(
-        plot_dir / "3d_two_peaks_segmentation.png",
+        plot_dir / "3d_two_peaks_segmentation_legacy.png",
         img,
         strucs_3d_two_peaks_h0,
     )
@@ -168,7 +168,7 @@ def test_plot_segmentation_2d_ring(strucs_2d_ring_h1, toy_2d_ring, plot_dir):
     from perch.tests import _plotting
     img, _, _ = toy_2d_ring
     _plotting.plot_segmentation_2d(
-        plot_dir / "2d_ring_segmentation.png",
+        plot_dir / "2d_ring_h1_segmentation.png",
         img,
         strucs_2d_ring_h1,
     )
@@ -180,7 +180,7 @@ def test_plot_segmentation_3d_shell(strucs_3d_shell_h2, toy_3d_shell, plot_dir):
     from perch.tests import _plotting
     img, _, _ = toy_3d_shell
     _plotting.plot_segmentation_3d(
-        plot_dir / "3d_shell_segmentation.png",
+        plot_dir / "3d_shell_h2_segmentation.png",
         img,
         strucs_3d_shell_h2,
     )

@@ -48,6 +48,14 @@ _3D_TWO_PEAKS = dict(
 _2D_RING = dict(shape=(24, 24), center=(12, 12), radius=6.0, sigma=1.5)
 _3D_SHELL = dict(shape=(24, 24, 24), center=(12, 12, 12), radius=6.0, sigma=1.5)
 
+_3D_NAN_HALO = dict(
+    shape=(12, 12, 12),
+    peaks=[(5, 6, 6), (8, 4, 5)],
+    amps=[1.0, 0.6],
+    sigmas=[1.2, 1.2],
+    halo_width=2,
+)
+
 
 def make_2d_two_peaks():
     s = _2D_TWO_PEAKS
@@ -69,6 +77,24 @@ def make_2d_ring():
 def make_3d_shell():
     s = _3D_SHELL
     return shell_field(s["shape"], s["center"], s["radius"], s["sigma"]), s["center"], s["radius"]
+
+
+def make_3d_nan_halo():
+    """3D cube with a Gaussian peak surrounded by a NaN halo (mirrors the
+    dust-cube geometry that motivated ``pad_essential='dilate'``)."""
+    s = _3D_NAN_HALO
+    spec = list(zip(s["peaks"], s["amps"], s["sigmas"]))
+    img = gaussian_field(s["shape"], spec, dtype=np.float64)
+    h = s["halo_width"]
+    nan_mask = np.zeros(s["shape"], dtype=bool)
+    nan_mask[:h] = True
+    nan_mask[-h:] = True
+    nan_mask[:, :h] = True
+    nan_mask[:, -h:] = True
+    nan_mask[:, :, :h] = True
+    nan_mask[:, :, -h:] = True
+    img = np.where(nan_mask, np.nan, img)
+    return img, s["peaks"]
 
 
 # Map fixture-name → builder. Used by ``data/_regenerate.py``.

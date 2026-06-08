@@ -139,7 +139,8 @@ def test_filter_min_life_keeps_high_persistence(ph_2d_ring):
     """``min_life`` filters by ``|death - birth|``. The 15 finite-death noise
     H0 generators each have persistence < 0.1 and are dropped at threshold 0.5.
     Two survivors clear it: the H1 ring cycle (persistence ≈ 0.92) and the
-    essential H0 (whose ``death = -DBL_MAX`` gives a huge nominal life)."""
+    essential H0 (persistence ≈ 1.0 under the default ``pad_essential='auto'``;
+    a much larger nominal value under legacy ``pad_essential=False``)."""
     high = ph_2d_ring.filter(min_life=0.5)
     assert high.n_struc == 2
     htypes = sorted(s.htype for s in high.all_structures)
@@ -148,7 +149,7 @@ def test_filter_min_life_keeps_high_persistence(ph_2d_ring):
 
 def test_filter_max_life_keeps_low_persistence(ph_2d_ring):
     low = ph_2d_ring.filter(max_life=0.5)
-    # everything except the essential H0 (infinite life) and the strong H1
+    # everything except the essential H0 and the strong H1
     assert all(s.htype == 0 for s in low.all_structures)
     assert low.n_struc < ph_2d_ring.strucs.n_struc
 
