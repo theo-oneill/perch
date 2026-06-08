@@ -101,6 +101,18 @@ def make_3d_nan_halo():
     nan_mask[:, :, :h] = True
     nan_mask[:, :, -h:] = True
     img = np.where(nan_mask, np.nan, img)
+
+    # Guard against amp/sigma drift silently relocating the global maximum.
+    # The pad_essential tests assume the essential H_0 class is born at a
+    # single, unambiguous voxel — the primary peak. If a future edit to
+    # _3D_NAN_HALO breaks that, fail loudly here rather than exercise a
+    # different code path under a passing test.
+    finite = np.where(np.isfinite(img), img, -np.inf)
+    argmax = np.argwhere(finite == finite.max())
+    assert argmax.tolist() == [list(s["peaks"][0])], (
+        "make_3d_nan_halo: global maximum is not a unique voxel at peaks[0]; "
+        "adjust amps/sigmas so the essential class is unambiguous."
+    )
     return img, s["peaks"]
 
 
