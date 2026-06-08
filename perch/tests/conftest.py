@@ -81,7 +81,11 @@ def toy_3d_shell():
 
 @pytest.fixture(scope="session")
 def ph_2d_two_peaks(toy_2d_two_peaks):
-    """PH of the 2D two-peaks image, computed once per session."""
+    """PH of the 2D two-peaks image, computed once per session.
+
+    Uses the default ``pad_essential='auto'`` — the essential H_0 class
+    has a finite, data-driven death.
+    """
     from perch.ph import PH
     img, _ = toy_2d_two_peaks
     return PH.compute_hom(data=img, verbose=False)
@@ -111,26 +115,72 @@ def ph_3d_shell(toy_3d_shell):
     return PH.compute_hom(data=img, verbose=False)
 
 
+# Legacy-behavior PH fixtures: pin pad_essential=False so tests that
+# encode the old -DBL_MAX essential-class sentinel keep doing so. Used
+# by the regression suite and by IO tests that exercise load_from's
+# essential-stripping behavior.
+
 @pytest.fixture(scope="session")
-def strucs_2d_two_peaks_h0(ph_2d_two_peaks, toy_2d_two_peaks):
+def ph_2d_two_peaks_legacy(toy_2d_two_peaks):
+    from perch.ph import PH
+    img, _ = toy_2d_two_peaks
+    return PH.compute_hom(data=img, verbose=False, pad_essential=False)
+
+
+@pytest.fixture(scope="session")
+def ph_3d_two_peaks_legacy(toy_3d_two_peaks):
+    from perch.ph import PH
+    img, _ = toy_3d_two_peaks
+    return PH.compute_hom(data=img, verbose=False, pad_essential=False)
+
+
+@pytest.fixture(scope="session")
+def ph_2d_ring_legacy(toy_2d_ring):
+    from perch.ph import PH
+    img, _, _ = toy_2d_ring
+    return PH.compute_hom(data=img, verbose=False, pad_essential=False)
+
+
+@pytest.fixture(scope="session")
+def ph_3d_shell_legacy(toy_3d_shell):
+    from perch.ph import PH
+    img, _, _ = toy_3d_shell
+    return PH.compute_hom(data=img, verbose=False, pad_essential=False)
+
+
+@pytest.fixture(scope="session")
+def toy_3d_nan_halo():
+    """3D cube with a Gaussian peak surrounded by a NaN halo. Exercises
+    the dilate path of ``pad_essential``."""
+    return _fixtures.make_3d_nan_halo()
+
+
+@pytest.fixture(scope="session")
+def strucs_2d_two_peaks_h0(ph_2d_two_peaks_legacy, toy_2d_two_peaks):
     """H0 structures from the 2D two-peaks fixture with hierarchy segmented.
 
     Mutates a filtered Structures collection in place — paid once per session.
     The two-peaks layout produces a clean hierarchy: the essential class is the
     trunk (whole-image segmentation), the finite-death H0 generator is its
     only leaf child.
+
+    Uses the legacy (``pad_essential=False``) PH so the essential class's
+    ``-DBL_MAX`` death keeps its segmentation as the whole image; under the
+    new default the essential class has a finite, sub-image segmentation
+    and the hierarchy shape changes.
     """
     img, _ = toy_2d_two_peaks
-    h0 = ph_2d_two_peaks.filter(dimension=0)
+    h0 = ph_2d_two_peaks_legacy.filter(dimension=0)
     h0.compute_segment_hierarchy(img_jnp=img, verbose=False, export=False)
     return h0
 
 
 @pytest.fixture(scope="session")
-def strucs_3d_two_peaks_h0(ph_3d_two_peaks, toy_3d_two_peaks):
-    """H0 structures from the 3D two-peaks fixture with hierarchy segmented."""
+def strucs_3d_two_peaks_h0(ph_3d_two_peaks_legacy, toy_3d_two_peaks):
+    """H0 structures from the 3D two-peaks fixture with hierarchy segmented.
+    Uses the legacy PH fixture; see ``strucs_2d_two_peaks_h0``."""
     img, _ = toy_3d_two_peaks
-    h0 = ph_3d_two_peaks.filter(dimension=0)
+    h0 = ph_3d_two_peaks_legacy.filter(dimension=0)
     h0.compute_segment_hierarchy(img_jnp=img, verbose=False, export=False)
     return h0
 
@@ -148,20 +198,26 @@ def strucs_2d_ring_h1(ph_2d_ring, toy_2d_ring):
 
 @pytest.fixture(scope="session")
 def ph_2d_two_peaks_wcs(toy_2d_two_peaks):
-    """PH of the 2D two-peaks image with a celestial WCS attached."""
+    """PH of the 2D two-peaks image with a celestial WCS attached.
+
+    Pinned to ``pad_essential=False`` so the WCS-aware H_0 hierarchy
+    fixtures keep the legacy ``-DBL_MAX`` essential semantics that the
+    test suite encodes.
+    """
     from perch.ph import PH
     img, _ = toy_2d_two_peaks
     wcs = _fixtures.make_wcs_2d(img.shape)
-    return PH.compute_hom(data=img, wcs=wcs, verbose=False)
+    return PH.compute_hom(data=img, wcs=wcs, verbose=False, pad_essential=False)
 
 
 @pytest.fixture(scope="session")
 def ph_3d_two_peaks_wcs(toy_3d_two_peaks):
-    """PH of the 3D two-peaks cube with a celestial+freq WCS attached."""
+    """PH of the 3D two-peaks cube with a celestial+freq WCS attached.
+    Pinned to legacy; see ``ph_2d_two_peaks_wcs``."""
     from perch.ph import PH
     img, _ = toy_3d_two_peaks
     wcs = _fixtures.make_wcs_3d(img.shape)
-    return PH.compute_hom(data=img, wcs=wcs, verbose=False)
+    return PH.compute_hom(data=img, wcs=wcs, verbose=False, pad_essential=False)
 
 
 @pytest.fixture(scope="session")

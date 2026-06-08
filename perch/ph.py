@@ -1,4 +1,6 @@
 import copy
+import warnings
+
 import numpy as np
 from perch.structures import Structures
 import cripser
@@ -55,6 +57,13 @@ class PH(object):
             img_prep = np.where(fill_mask, buff_val, img_prep)
 
         if buff_pix:
+            warnings.warn(
+                "The `buff_pix` path in PH._prep_img is deprecated and will be "
+                "removed in a future release. Use `pad_essential=` on "
+                "`PH.compute_hom` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
             if buff_val is None:
                 buff_val = np.nanmin(img_prep) * 2
@@ -81,8 +90,148 @@ class PH(object):
 
         return img_prep, buff_val
 
+    @staticmethod
+    def _resolve_pad_mode(pad_essential, data):
+        """Resolve ``pad_essential`` to a concrete mode string or ``False``."""
+        if pad_essential is False or pad_essential is None:
+            return False
+        if pad_essential == 'auto':
+            return 'dilate' if np.isnan(data).any() else 'bbox'
+        if pad_essential in ('dilate', 'bbox'):
+            return pad_essential
+        raise ValueError(
+            f"pad_essential must be one of 'auto', 'dilate', 'bbox', False; "
+            f"got {pad_essential!r}"
+        )
+
+    @staticmethod
+    def _build_padded_data(data, mode, pad_value):
+        """Build the padded data array for the second cripser pass.
+
+        Returns ``(padded_data, pixel_offset)`` where ``pixel_offset`` is the
+        per-axis shift to subtract from padded-frame pixel coords to recover
+        original-frame coords.
+        """
+        if mode == 'dilate':
+            from scipy.ndimage import binary_dilation
+            finite = np.isfinite(data)
+            if finite.all():
+                raise ValueError(
+                    "pad_essential='dilate' requires NaN voxels to dilate "
+                    "into; the input is fully finite. Use 'bbox' (or 'auto') "
+                    "instead."
+                )
+            if not finite.any():
+                raise ValueError(
+                    "pad_essential='dilate' requires some finite voxels; "
+                    "input is all-NaN."
+                )
+            new_edges = binary_dilation(finite) & ~finite
+            padded = data.copy()
+            padded[new_edges] = pad_value
+            offset = np.zeros(data.ndim, dtype=int)
+            return padded, offset
+
+        if mode == 'bbox':
+            padded = np.pad(data, pad_width=1, mode='constant',
+                            constant_values=pad_value)
+            offset = np.ones(data.ndim, dtype=int)
+            return padded, offset
+
+        raise ValueError(f"unknown pad_essential mode: {mode!r}")
+
+    def _pad_and_patch_essential(self, h_all, mode, pad_value, verbose,
+                                 embedded=False):
+        """Run a padded H_0-only PH and patch the originally-essential row.
+
+        The originally-essential H_0 generator is the row whose birth is
+        ``nanmax(data)`` and whose death is the most-negative (``-DBL_MAX``
+        sentinel in the un-patched run, or the smallest finite death among
+        tied-birth rows). In the padded run, no row carries the sentinel
+        because the pad voxels host the new global essential; we locate the
+        matching row by birth-pixel equality and copy its death and
+        death-pixel columns back into ``h_all`` in place.
+        """
+        target_birth = np.nanmax(self.data)
+        if not np.isfinite(target_birth):
+            raise ValueError(
+                "pad_essential requires data to have at least one finite "
+                "voxel; got an all-NaN/inf input."
+            )
+        # Default pad value lives here, beside its docstring, and reuses the
+        # single nanmax above rather than recomputing it in the caller.
+        if pad_value is None:
+            pad_value = 10.0 * target_birth
+
+        # Identify the essential row in the original run: among rows with
+        # birth==target_birth, the one with the smallest death. With the
+        # legacy sentinel that's the -DBL_MAX row; with no ties it's the
+        # only such row.
+        ess_mask = (h_all[:, 0] == 0) & (h_all[:, 1] == target_birth)
+        ess_idx_all = np.where(ess_mask)[0]
+        if ess_idx_all.size == 0:
+            raise RuntimeError(
+                "pad_essential: no H_0 generator in the original run has "
+                f"birth == nanmax(data)={target_birth!r}."
+            )
+        essential_idx = int(ess_idx_all[np.argmin(h_all[ess_idx_all, 2])])
+        essential_bp = h_all[essential_idx, 3:3 + self.n_dim].astype(int)
+
+        padded_data, pixel_offset = self._build_padded_data(
+            self.data, mode, pad_value
+        )
+
+        padded_flipped = -padded_data
+        if verbose:
+            print(f"  pad_essential={mode!r}: running padded H_0 PH "
+                  f"on shape {padded_flipped.shape}...")
+        ph_pad = cripser.computePH(padded_flipped, maxdim=0, embedded=embedded)
+        ph_pad[:, 1] = -ph_pad[:, 1]
+        ph_pad[:, 2] = -ph_pad[:, 2]
+
+        cand_mask = (ph_pad[:, 0] == 0) & (ph_pad[:, 1] == target_birth)
+        cand_idx_all = np.where(cand_mask)[0]
+        cand_bps = (ph_pad[cand_idx_all, 3:3 + self.n_dim].astype(int)
+                    - pixel_offset)
+        bp_match = np.all(cand_bps == essential_bp, axis=1)
+        matched = cand_idx_all[bp_match]
+        if matched.size != 1:
+            # The originally-essential birth pixel has no unique counterpart in
+            # the padded run. This happens when that pixel touches the padded
+            # boundary (e.g. a bright source against a NaN mask edge): once the
+            # higher-valued pad is added, the pixel is absorbed into the pad/
+            # boundary component at its own birth level and never initiates its
+            # own H_0 component, so there is nothing to read a finite death
+            # from. Rather than abort the whole PH, leave this single row at its
+            # legacy -DBL_MAX sentinel (it stays genuinely essential) and warn.
+            warnings.warn(
+                "pad_essential: could not locate a unique padded-run "
+                f"counterpart of the essential row (birthpix="
+                f"{tuple(essential_bp)}, matched={matched.size}); leaving its "
+                "legacy -DBL_MAX sentinel death in place. This typically means "
+                "the global-extremum voxel touches the padded boundary.",
+                stacklevel=2,
+            )
+            return
+        pad_row = ph_pad[matched[0]]
+
+        # cripser always emits 9 columns regardless of dimensionality:
+        # [dim, birth, death, bx, by, bz, dx, dy, dz]. The death pixel
+        # therefore lives at the fixed columns 6:6+n_dim, NOT at 3+n_dim.
+        # The pixel_offset/clip below only does real work for 'bbox' (a
+        # 1-voxel shell shifts coords by 1); 'dilate' keeps the original
+        # shape and frame, so pixel_offset is all-zero and clip is a no-op.
+        shape = np.array(self.data.shape)
+        h_all[essential_idx, 2] = pad_row[2]
+        death_pix_padded = pad_row[6:6 + self.n_dim].astype(int)
+        death_pix_orig = np.clip(
+            death_pix_padded - pixel_offset, 0, shape - 1
+        )
+        h_all[essential_idx, 6:6 + self.n_dim] = death_pix_orig
+
     def compute_hom(data=None, max_Hi=None, wcs=None, flip_data=True, verbose=True, embedded=False,
-                     noise=None,prep_img_kwargs={}):
+                     noise=None,prep_img_kwargs={},
+                     pad_essential='auto', pad_value=None):
 
         '''
         Compute persistent homology.
@@ -103,6 +252,28 @@ class PH(object):
             Compute embedded PH.
         noise : np.ndarray
             Noise map of same shape as data.
+        pad_essential : {'auto', 'dilate', 'bbox', False}, default 'auto'
+            Strategy for giving the H_0 generator born at ``nanmax(data)``
+            a finite death by running a second, H_0-only cripser pass on a
+            padded copy of ``data``. The death and death-pixel columns of
+            the originally-essential row are then patched into the primary
+            generators table. All other rows are taken from the primary
+            run untouched, so H_0/H_1/H_2 counts and finite-row values are
+            unchanged.
+
+            ``'auto'`` picks ``'dilate'`` if ``data`` contains NaN voxels,
+            else ``'bbox'``. ``'dilate'`` fills the binary-dilation edge of
+            the finite-valued region with ``pad_value`` and keeps the
+            original array shape. ``'bbox'`` wraps the array in a 1-voxel
+            shell of ``pad_value`` and translates padded-frame pixel coords
+            back into the original frame. ``False`` skips padding entirely
+            (legacy behavior — essential death = ``-DBL_MAX`` sentinel).
+            Only the superlevel convention (``flip_data=True``) is supported.
+        pad_value : float, optional
+            Value placed in pad voxels. Defaults to ``10 * np.nanmax(data)``.
+            The infilled essential death is a property of the data, not of
+            ``pad_value``; varying ``pad_value`` over a wide range produces
+            the same patched death (the regression suite asserts this).
 
         Returns:
         --------
@@ -138,6 +309,19 @@ class PH(object):
         self.max_Hi = max_Hi
         self.noise = noise
 
+        # resolve pad_essential mode (None if disabled / unsupported convention)
+        pad_mode = self._resolve_pad_mode(pad_essential, self.data)
+        if pad_mode and not flip_data:
+            if pad_essential == 'auto':
+                pad_mode = False  # silently disable under sublevel convention
+            else:
+                raise ValueError(
+                    "pad_essential is only supported with flip_data=True "
+                    "(the superlevel convention). Pass pad_essential=False "
+                    "to compute with flip_data=False."
+                )
+        self.pad_essential = pad_mode
+
         # define PH computation engine
         self.ph_fxn = cripser.computePH
 
@@ -147,7 +331,6 @@ class PH(object):
             t1 = time.time()
 
         # compute PH
-        #ph_all = cripser.computePH(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
         ph_all = self.ph_fxn(self.data_prep, maxdim=self.max_Hi, embedded=embedded)
 
         if verbose:
@@ -158,28 +341,16 @@ class PH(object):
         if flip_data:
             ph_all[:,1] = -ph_all[:,1]
             ph_all[:,2] = -ph_all[:,2]
-            #if buff_val is not None:
-            #print('ignoring')
-            """base_struc = ph_all[:,1] == -buff_val
-                ph_all = ph_all[~base_struc]
-                base_struc = ph_all[:, 2] == -buff_val
-                ph_all = ph_all[~base_struc]#"""
-            #print('flipping observed deaths')
-
-        # remove generators that originate from nans
-        """base_struc = ph_all[:,2] < np.nanmin(self.data)
-        ph_all = ph_all[~base_struc]
-        base_struc = np.isnan(ph_all[:, 1])
-        ph_all = ph_all[~base_struc]#"""
-
-        if 'fill_mask' in {}.keys():
-            # remove generators that originate from inside of fill mask
-            base_struc = prep_img_kwargs['fill_mask'][ph_all[:, 3].astype(int), ph_all[:, 4].astype(int), ph_all[:, 5].astype(int)]
-            ph_all = ph_all[~base_struc]
 
         # add id
         h_id = np.arange(len(ph_all))
         h_all = np.hstack((ph_all, np.array(h_id).reshape(-1, 1)))
+
+        # patch the originally-essential H_0 row with the padded run's death
+        # (pad_value=None lets the helper apply its 10*nanmax default)
+        if pad_mode:
+            self._pad_and_patch_essential(h_all, pad_mode, pad_value, verbose,
+                                          embedded=embedded)
 
         # store generators
         self.generators = h_all
@@ -240,17 +411,15 @@ class PH(object):
         self.max_Hi = max_Hi
         self.noise = noise
 
-        # load generators
+        # load generators faithfully -- return exactly what is in the file so a
+        # save -> load round trip is the identity and matches compute_hom's
+        # in-memory generators. Cleaning (NaN-origin artifacts, the essential
+        # -DBL_MAX row) is a filtering decision left to the caller (e.g. via
+        # PH.filter / structure selection), not done silently at load time.
         gens = np.loadtxt(f'{odir}{fname}')
         # convert to physical units if necessary
         if conv_fac is not None:
             gens[:,1:3] *= conv_fac
-
-        # remove generators that originate from nans
-        base_struc = gens[:,2] < np.nanmin(self.data)
-        gens = gens[~base_struc]
-        base_struc = np.isnan(gens[:, 1])
-        gens = gens[~base_struc]
 
         # add homology id if not present
         if np.shape(gens)[1] == 9:

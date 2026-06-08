@@ -12,6 +12,7 @@ import pytest
 
 from perch.ph import PH
 from perch.structures import Structures
+from perch.tests._fixtures import ESSENTIAL_SENTINEL
 
 
 # ---------------------------------------------------------------------------
@@ -21,10 +22,13 @@ from perch.structures import Structures
 def test_compute_hom_with_buff_pix(toy_2d_two_peaks):
     """``buff_pix=True`` writes a sentinel value at a corner of the prepped
     image to anchor the essential class. The call should run without
-    crashing and still produce the expected H0 generator pair."""
+    crashing and still produce the expected H0 generator pair. The path is
+    deprecated in favor of ``pad_essential=``, so we also acknowledge the
+    DeprecationWarning here."""
     img, _ = toy_2d_two_peaks
-    ph = PH.compute_hom(data=img, verbose=False,
-                        prep_img_kwargs={"buff_pix": True})
+    with pytest.warns(DeprecationWarning, match="buff_pix"):
+        ph = PH.compute_hom(data=img, verbose=False, pad_essential=False,
+                            prep_img_kwargs={"buff_pix": True})
     h0 = ph.generators[ph.generators[:, 0] == 0]
     assert len(h0) >= 2
 
@@ -94,10 +98,12 @@ def test_empty_structures_segmentation_returns_without_error():
 # ---------------------------------------------------------------------------
 
 def test_compute_hom_with_buff_pix_3d(toy_3d_two_peaks):
-    """``buff_pix=True`` 3D path in ``_prep_img``."""
+    """``buff_pix=True`` 3D path in ``_prep_img``. Deprecated path — see
+    ``test_compute_hom_with_buff_pix``."""
     img, _ = toy_3d_two_peaks
-    ph = PH.compute_hom(data=img, verbose=False,
-                        prep_img_kwargs={"buff_pix": True})
+    with pytest.warns(DeprecationWarning, match="buff_pix"):
+        ph = PH.compute_hom(data=img, verbose=False, pad_essential=False,
+                            prep_img_kwargs={"buff_pix": True})
     assert ph.generators is not None
     assert (ph.generators[:, 0] == 0).any()
 
@@ -231,7 +237,7 @@ def test_pipeline_handles_explicit_big_endian(toy_2d_two_peaks):
 
     # Structure.compute_segment on big-endian.
     h0 = ph_be.generators[(ph_be.generators[:, 0] == 0)
-                          & (ph_be.generators[:, 2] > -1e30)][0]
+                          & (ph_be.generators[:, 2] > ESSENTIAL_SENTINEL)][0]
     struc = ph_be.strucs.structures[int(h0[9])]
     struc.compute_segment(img_be)
     assert struc.npix > 0

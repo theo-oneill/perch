@@ -36,7 +36,7 @@ def _attach_marker_legend(fig, handles):
 
 # cripser writes -DBL_MAX (~ -1.8e308) for the essential class. Anything
 # more negative than this sentinel is treated as "infinite lifetime".
-_ESSENTIAL_SENTINEL = -1e30
+from perch.tests._fixtures import ESSENTIAL_SENTINEL as _ESSENTIAL_SENTINEL
 
 # Where to draw essential generators on the persistence diagram's death axis
 # (purely cosmetic — the real lifetime is infinite).
@@ -47,7 +47,15 @@ _DIM_MARKERS = {0: "o", 1: "s", 2: "^"}
 
 
 def is_essential(generators: np.ndarray) -> np.ndarray:
-    """Boolean mask: which rows of a generator table are essential classes."""
+    """Boolean mask: which rows carry the legacy ``-DBL_MAX`` essential sentinel.
+
+    This detects the *unpadded* essential class (``death == -DBL_MAX``), as
+    produced by ``pad_essential=False`` or pre-``pad_essential`` runs. Under
+    the ``pad_essential`` default the formerly-essential H_0 class has a
+    finite, data-driven death, so it is intentionally NOT flagged here — it
+    plots as an ordinary high-persistence point, and this mask is all-False
+    for such a run. It is not a "find the top class" helper.
+    """
     return generators[:, 2] < _ESSENTIAL_SENTINEL
 
 

@@ -12,6 +12,13 @@ from __future__ import annotations
 import numpy as np
 
 
+# Single source of truth for the essential-class death sentinel. cripser writes
+# -DBL_MAX (~ -1.8e308) for a class that never dies; any death below this
+# threshold is treated as "essential / infinite lifetime". Imported by the
+# test suite and the plotting helpers so the constant is defined exactly once.
+ESSENTIAL_SENTINEL = -1e30
+
+
 def gaussian_field(shape, peaks_amps_sigmas, dtype=np.float32):
     """Sum of isotropic Gaussians on a grid."""
     grids = np.indices(shape)
@@ -48,6 +55,14 @@ _3D_TWO_PEAKS = dict(
 _2D_RING = dict(shape=(24, 24), center=(12, 12), radius=6.0, sigma=1.5)
 _3D_SHELL = dict(shape=(24, 24, 24), center=(12, 12, 12), radius=6.0, sigma=1.5)
 
+_3D_NAN_HALO = dict(
+    shape=(12, 12, 12),
+    peaks=[(5, 6, 6), (8, 4, 5)],
+    amps=[1.0, 0.6],
+    sigmas=[1.2, 1.2],
+    halo_width=2,
+)
+
 
 def make_2d_two_peaks():
     s = _2D_TWO_PEAKS
@@ -69,6 +84,36 @@ def make_2d_ring():
 def make_3d_shell():
     s = _3D_SHELL
     return shell_field(s["shape"], s["center"], s["radius"], s["sigma"]), s["center"], s["radius"]
+
+
+def make_3d_nan_halo():
+    """3D cube with a Gaussian peak surrounded by a NaN halo (mirrors the
+    dust-cube geometry that motivated ``pad_essential='dilate'``)."""
+    s = _3D_NAN_HALO
+    spec = list(zip(s["peaks"], s["amps"], s["sigmas"]))
+    img = gaussian_field(s["shape"], spec, dtype=np.float64)
+    h = s["halo_width"]
+    nan_mask = np.zeros(s["shape"], dtype=bool)
+    nan_mask[:h] = True
+    nan_mask[-h:] = True
+    nan_mask[:, :h] = True
+    nan_mask[:, -h:] = True
+    nan_mask[:, :, :h] = True
+    nan_mask[:, :, -h:] = True
+    img = np.where(nan_mask, np.nan, img)
+
+    # Guard against amp/sigma drift silently relocating the global maximum.
+    # The pad_essential tests assume the essential H_0 class is born at a
+    # single, unambiguous voxel — the primary peak. If a future edit to
+    # _3D_NAN_HALO breaks that, fail loudly here rather than exercise a
+    # different code path under a passing test.
+    finite = np.where(np.isfinite(img), img, -np.inf)
+    argmax = np.argwhere(finite == finite.max())
+    assert argmax.tolist() == [list(s["peaks"][0])], (
+        "make_3d_nan_halo: global maximum is not a unique voxel at peaks[0]; "
+        "adjust amps/sigmas so the essential class is unambiguous."
+    )
+    return img, s["peaks"]
 
 
 # Map fixture-name → builder. Used by ``data/_regenerate.py``.
