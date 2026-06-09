@@ -341,11 +341,16 @@ class Structures(object):
     def _calc_frac_npix_parent(self):
         '''
         Calculate the fraction of pixels of each structure relative to its parent.
+
+        Looks parents up by ID through ``self.structures`` rather than indexing
+        the positional ``npix`` array, so it stays correct after removals leave
+        the structure IDs non-contiguous.
         '''
         frac_parent = np.full(self.n_struc, np.nan)
-        for j in range(self.n_struc):
-            if self.parent[j] is not None:
-                frac_parent[j] = self.npix[j] / self.npix[self.parent[j]]
+        for j, k in enumerate(self.structure_keys):
+            struc = self.structures[k]
+            if struc.parent is not None:
+                frac_parent[j] = struc.npix / self.structures[struc.parent].npix
         self._frac_npix_parent = frac_parent
 
     #####################################################
@@ -468,7 +473,9 @@ class Structures(object):
         if s_include is None:
             s_include = list(self.structure_keys)
         if use_descendants:
-            s_include = np.unique(np.hstack([self.descendants[s_include[i]] for i in range(len(s_include))]))
+            # index descendants by structure ID, not by array position, so this
+            # stays correct after removals leave the IDs non-contiguous.
+            s_include = np.unique(np.hstack([self.structures[sid].descendants for sid in s_include]))
         mask = np.isin(self.struc_map, s_include)
         return mask
 
@@ -491,7 +498,9 @@ class Structures(object):
         if s_include is None:
             s_include = list(self.structure_keys)
         if use_descendants:
-            s_include = np.unique(np.hstack([self.descendants[s_include[i]] for i in range(len(s_include))]))
+            # index descendants by structure ID, not by array position, so this
+            # stays correct after removals leave the IDs non-contiguous.
+            s_include = np.unique(np.hstack([self.structures[sid].descendants for sid in s_include]))
         mask = np.isin(self.struc_map, s_include)
         struc_map_mask = np.where(mask, self.struc_map, np.nan)
         return struc_map_mask
@@ -885,15 +894,26 @@ class Structures(object):
 
     ########################################################################
     def remove_strucs(self, remove_ids, verbose=False):
+        '''
+        Remove several structures, one at a time. Each removal dissolves the
+        structure into its parent (see :meth:`remove_struc`); IDs are stable,
+        so order only matters if ``remove_ids`` references a structure that an
+        earlier removal already dissolved.
+        '''
         for s in remove_ids:
             self.remove_struc(s, verbose=verbose)
 
 
     def remove_struc(self, s_remove, verbose=False):
         '''
-        Remove a structure.
+        Remove a single structure, dissolving it into its parent.
 
-        NOTE: in development.  need to add recursive removal of structure from all parent descendant lists in hierarchy
+        The structure's exclusive pixels are reassigned to its parent (or set
+        to NaN if it was a trunk), its children are re-parented onto its parent
+        (becoming new trunks if it had none), and every descendant drops one
+        level of nesting. The hierarchy bookkeeping is updated so that the
+        removed ID is purged from the children list of its parent and from the
+        (self-inclusive) descendant lists of *all* of its ancestors.
 
         Parameters:
         -----------
@@ -906,42 +926,68 @@ class Structures(object):
         if verbose:
             print(f'Removing structure {s_remove}...')
 
-        if not self.structures[s_remove].is_leaf:
+        struc = self.structures[s_remove]
+        parent_id = struc.parent  # None if s_remove is a trunk
+
+        if not struc.is_leaf:
             if verbose:
                 print('Structure is a branch.')
 
-            ids_children = self.structures[s_remove].children
-            #child_mask = np.isin(self.id, ids_children)
+            ids_children = list(struc.children)
+            # descendants is self-inclusive; exclude s_remove itself, whose
+            # own pixels/level are handled by the reassignment step below.
+            ids_desc = [d for d in struc.descendants if d != s_remove]
 
-            ids_desc = self.structures[s_remove].descendants
-
-            #desc_mask = np.isin(self.id, ids_desc)
-            # reduce level of all descendants by one
-            for j in range(len(ids_desc)):
-                self.structures[ids_desc[j]]._level = self.structures[ids_desc[j]]._level - 1
+            # every descendant loses one level of nesting (s_remove leaves the
+            # containment chain), both per-structure and in the level map.
+            for d in ids_desc:
+                self.structures[d]._level -= 1
             desc_map_mask = np.isin(self.struc_map, ids_desc)
             self.level_map[desc_map_mask] -= 1
 
-            # remove structure as children's parent
-            for j in range(len(ids_children)):
-                self.structures[ids_children[j]]._parent = None
+            # re-parent s_remove's children onto s_remove's parent. With no
+            # parent they become new trunks; otherwise they are appended to the
+            # parent's children list (which then drops s_remove below).
+            for c in ids_children:
+                self.structures[c]._parent = parent_id
+            if parent_id is not None:
+                self.structures[parent_id]._children.extend(ids_children)
 
-        # remove structure from list of parent's children and descendants
-        if self.structures[s_remove].parent is not None:
+        # detach s_remove from its parent's children, and from the descendant
+        # list of every ancestor (descendants propagate up the whole chain).
+        if parent_id is not None:
             if verbose:
                 print('Structure has a parent.')
-            parent_id = self.structures[s_remove].parent
             self.structures[parent_id]._children.remove(s_remove)
-            self.structures[parent_id]._descendants.remove(s_remove)
-            #self.structures[s_remove]._parent = None
+            anc = parent_id
+            while anc is not None:
+                anc_struc = self.structures[anc]
+                if s_remove in anc_struc._descendants:
+                    anc_struc._descendants.remove(s_remove)
+                anc = anc_struc.parent
 
-        # replace pixels with structure's ID in segmented map with parent ID or nan, depending on parentage
+        # reassign s_remove's exclusive pixels to its parent's ID/level, or to
+        # NaN if it was a trunk.
         struc_mask = np.isin(self.struc_map, s_remove)
-        self.struc_map[struc_mask] = np.nan if self.structures[s_remove].parent is None else self.structures[s_remove].parent
-        self.level_map[struc_mask] = np.nan if self.structures[s_remove].parent is None else self.structures[self.structures[s_remove].parent].level
+        if parent_id is None:
+            self.struc_map[struc_mask] = np.nan
+            self.level_map[struc_mask] = np.nan
+        else:
+            self.struc_map[struc_mask] = parent_id
+            self.level_map[struc_mask] = self.structures[parent_id].level
 
-        # finally, remove structure from dictionary of structures
+        # finally, drop s_remove and refresh cached hierarchy summaries.
         self.structures.pop(s_remove)
+        self._refresh_hierarchy_cache()
+
+    def _refresh_hierarchy_cache(self):
+        '''
+        Recompute cached hierarchy summaries (``trunk``/``leaves``) and
+        invalidate derived caches after a structural edit such as a removal.
+        '''
+        self._trunk = [s for s in self.all_structures if s.parent is None]
+        self._leaves = [s for s in self.all_structures if s.is_leaf]
+        self._frac_npix_parent = None
 
     ########################################################################
 
