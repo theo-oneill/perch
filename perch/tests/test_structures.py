@@ -295,3 +295,53 @@ def test_clear_struc_map(strucs_2d_two_peaks_h0):
     assert h0.struc_map is not None
     h0.clear_struc_map()
     assert h0.struc_map is None
+
+
+# ---------------------------------------------------------------------------
+# _calculate_centroid — bbox-cropped, mask-free (memory regression)
+# ---------------------------------------------------------------------------
+
+def _scattered_structure(shape=(60, 90), npix=200, seed=42):
+    """A Structure with a scattered, offset footprint and a random image."""
+    rng = np.random.default_rng(seed)
+    img = rng.normal(10.0, 2.0, shape)
+    s = Structure(pi=[0, 1.0, 0.0, 5, 7, 0, 20, 30, 0], id=0, id_ph=0,
+                  img_shape=shape)
+    flat = rng.choice(shape[0] * shape[1] // 2, size=npix, replace=False)
+    s._indices = np.unravel_index(np.sort(flat) + shape[0] * shape[1] // 3, shape)
+    return s, img
+
+
+def test_calculate_centroid_matches_full_image_reference():
+    """The bbox-cropped centroid equals the legacy full-image formula
+    (zeros outside the footprint contribute nothing to an intensity
+    centroid)."""
+    from skimage import measure
+
+    s, img = _scattered_structure()
+    mask = np.zeros(img.shape, dtype=bool)
+    mask[s._indices] = True
+    ref = measure.centroid(np.where(mask, img, 0))     # legacy computation
+
+    s._calculate_centroid(img=img)
+    np.testing.assert_allclose(s._centroid, ref, rtol=0, atol=1e-12)
+
+
+def test_calculate_centroid_caches_no_mask():
+    """Regression: the centroid must not populate the full-image ``_mask``
+    cache — one full-image bool array per structure dominates memory on
+    large catalogs."""
+    s, img = _scattered_structure()
+    s._calculate_centroid(img=img)
+    assert s._mask is None
+
+
+def test_clear_indices_also_clears_cached_mask():
+    """``_clear_indices`` drops both per-pixel caches: indices AND the
+    full-image mask ``get_mask`` stores on the structure."""
+    s, _ = _scattered_structure()
+    s.get_mask()
+    assert s._mask is not None
+    s._clear_indices()
+    assert s._indices is None
+    assert s._mask is None
