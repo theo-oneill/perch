@@ -403,9 +403,12 @@ class Structure(object):
 
     def _clear_indices(self):
         '''
-        Clear indices.
+        Clear cached per-pixel arrays: the indices and any full-image mask
+        derived from them (``get_mask`` caches ``self._mask``, which is as
+        large as the indices and must not outlive them).
         '''
         self._indices = None
+        self._mask = None
 
     ##########################################################
 
@@ -462,17 +465,32 @@ class Structure(object):
         self._geom_cent = np.mean(self.indices,axis=1)
 
     def _calculate_centroid(self, img=None):
+        '''
+        Calculate the intensity centroid of the structure.
+
+        Computed on the structure's bounding-box crop: pixels outside the
+        footprint contribute nothing to an intensity centroid, so the result
+        equals the full-image computation while avoiding full-image
+        allocations. No mask is cached on the structure.
+
+        Parameters
+        ----------
+        img : array-like
+            Image to get values from.
+        '''
         from skimage import measure
         if img is None:
             raise ValueError("img must be provided")
-        if self.indices is None:
+        inds = self.indices
+        if inds is None:
             raise RuntimeError(
                 "segmentation has not been computed; call compute_segment first"
             )
-        if self._mask is None:
-            self.get_mask()
-        centr = measure.centroid(np.where(self._mask, img, 0))
-        self._centroid = centr
+        mins = [int(np.min(c)) for c in inds]
+        sub = np.zeros(tuple(int(np.max(c)) - m + 1 for c, m in zip(inds, mins)),
+                       dtype=np.asarray(img).dtype)
+        sub[tuple(c - m for c, m in zip(inds, mins))] = img[inds]
+        self._centroid = measure.centroid(sub) + np.asarray(mins, dtype=float)
 
 
     def _calculate_weight_cent(self, img=None):
